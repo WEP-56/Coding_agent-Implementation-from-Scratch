@@ -1,17 +1,22 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { cn } from "../../lib/utils";
-import { listMemoryBlocks, setMemoryBlock, type MemoryBlock } from "../../api/bridge";
+import {
+  listMemoryBlocks,
+  setMemoryBlock,
+  type MemoryBlock,
+} from "../../api/bridge";
 
 interface MemoryPanelProps {
   sessionId: string | null;
+  refreshToken?: string;
 }
 
 function scopeLabel(scope: string): string {
   return scope === "global" ? "Global" : "Project";
 }
 
-export function MemoryPanel({ sessionId }: MemoryPanelProps) {
+export function MemoryPanel({ sessionId, refreshToken }: MemoryPanelProps) {
   const [blocks, setBlocks] = useState<MemoryBlock[]>([]);
   const [active, setActive] = useState<string | null>(null);
   const [draft, setDraft] = useState<string>("");
@@ -44,7 +49,7 @@ export function MemoryPanel({ sessionId }: MemoryPanelProps) {
         setErrorText(String(e));
       })
       .finally(() => setLoading(false));
-  }, [sessionId]);
+  }, [sessionId, refreshToken]);
 
   const activeBlock = useMemo(() => {
     if (!active) return null;
@@ -71,7 +76,11 @@ export function MemoryPanel({ sessionId }: MemoryPanelProps) {
         readOnly: activeBlock.readOnly,
         limit: activeBlock.limit,
       });
-      setBlocks((prev) => prev.map((b) => (b.scope === updated.scope && b.label === updated.label ? updated : b)));
+      setBlocks((prev) =>
+        prev.map((b) =>
+          b.scope === updated.scope && b.label === updated.label ? updated : b,
+        ),
+      );
     } catch (e) {
       setErrorText(String(e));
     } finally {
@@ -82,7 +91,9 @@ export function MemoryPanel({ sessionId }: MemoryPanelProps) {
   return (
     <div className="grid h-full grid-cols-[220px_1fr] overflow-hidden">
       <div className="overflow-y-auto border-r border-border/50 p-3">
-        <div className="mb-2 text-xs font-semibold text-muted-foreground">记忆（Memory）</div>
+        <div className="mb-2 text-xs font-semibold text-muted-foreground">
+          记忆（Memory）
+        </div>
         {!sessionId ? (
           <div className="rounded-lg border border-dashed border-border/50 bg-card/30 p-4 text-center text-xs text-muted-foreground">
             请先选择会话
@@ -110,9 +121,15 @@ export function MemoryPanel({ sessionId }: MemoryPanelProps) {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="truncate text-foreground">{b.label}</span>
-                    <span className="text-[10px] text-muted-foreground">{scopeLabel(b.scope)}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {scopeLabel(b.scope)}
+                    </span>
                   </div>
-                  {b.description ? <div className="truncate text-[10px] text-muted-foreground">{b.description}</div> : null}
+                  {b.description ? (
+                    <div className="truncate text-[10px] text-muted-foreground">
+                      {b.description}
+                    </div>
+                  ) : null}
                 </button>
               );
             })}
@@ -135,7 +152,9 @@ export function MemoryPanel({ sessionId }: MemoryPanelProps) {
               <button
                 className={cn(
                   "rounded border border-border/50 px-2 py-1 transition-colors",
-                  activeBlock.readOnly ? "cursor-not-allowed opacity-50" : "hover:bg-accent",
+                  activeBlock.readOnly
+                    ? "cursor-not-allowed opacity-50"
+                    : "hover:bg-accent",
                 )}
                 disabled={activeBlock.readOnly || saving}
                 onClick={() => {

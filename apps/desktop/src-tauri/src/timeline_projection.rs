@@ -11,8 +11,10 @@ fn compare_timestamps(lhs: &str, rhs: &str) -> Ordering {
 fn turn_item_trace_type(item: &SessionTurnItem) -> Option<&'static str> {
     match item.kind {
         SessionTurnItemKind::UserMessage | SessionTurnItemKind::AssistantMessage => None,
+        SessionTurnItemKind::Reasoning => Some("model"),
         SessionTurnItemKind::Phase => Some("session"),
         SessionTurnItemKind::Context => Some("context"),
+        SessionTurnItemKind::Compaction => Some("context"),
         SessionTurnItemKind::ModelRequest => Some("model"),
         SessionTurnItemKind::Validation => Some("validation"),
         SessionTurnItemKind::Command => Some("command"),
@@ -27,12 +29,14 @@ fn turn_item_trace_type(item: &SessionTurnItem) -> Option<&'static str> {
 fn turn_item_type(item: &SessionTurnItem) -> Option<String> {
     match item.kind {
         SessionTurnItemKind::UserMessage | SessionTurnItemKind::AssistantMessage => None,
+        SessionTurnItemKind::Reasoning => Some("reasoning".into()),
         SessionTurnItemKind::Phase => Some(if item.title == "session.preflight" {
             "preflight".into()
         } else {
             "phase".into()
         }),
         SessionTurnItemKind::Context => Some("context".into()),
+        SessionTurnItemKind::Compaction => Some("compaction".into()),
         SessionTurnItemKind::ModelRequest => Some("model_request".into()),
         SessionTurnItemKind::Validation => Some("validation".into()),
         SessionTurnItemKind::Command => Some("command".into()),
@@ -123,6 +127,39 @@ pub fn project_timeline_from_turns(turns: &[SessionTurn]) -> Vec<TimelineStep> {
     out
 }
 
+pub fn project_session_events_from_turns(
+    session_id: &str,
+    turns: &[SessionTurn],
+) -> Vec<SessionEvent> {
+    let timeline = project_timeline_from_turns(turns);
+    timeline
+        .into_iter()
+        .rev()
+        .enumerate()
+        .map(|(index, step)| SessionEvent {
+            event_id: format!("projected-{}", step.id),
+            session_id: session_id.to_string(),
+            turn_id: step.turn_id.clone(),
+            run_id: step.run_id.clone(),
+            correlation_id: step.correlation_id.clone(),
+            agent_id: step.agent_id.clone().or_else(|| Some("agent_main".into())),
+            parent_agent_id: step.parent_agent_id.clone(),
+            kind: step
+                .event_kind
+                .clone()
+                .unwrap_or_else(|| "canonical.turn_item".into()),
+            title: step.title,
+            status: step.status,
+            detail: step.detail,
+            trace_type: step.trace_type,
+            item_id: step.item_id,
+            item_type: step.item_type,
+            ts: step.ts.unwrap_or_else(|| index.to_string()),
+            seq: step.sequence.unwrap_or(index as i64 + 1),
+        })
+        .collect()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,6 +193,8 @@ mod tests {
             error_category: None,
             error_code: None,
             retryable: None,
+            retry_hint: None,
+            fallback_hint: None,
             created_at: updated_at.into(),
             updated_at: updated_at.into(),
         }
@@ -169,6 +208,9 @@ mod tests {
             run_id: Some("run-1".into()),
             mode: "build".into(),
             route: Some("tool_execution".into()),
+            route_source: None,
+            route_reason: None,
+            route_signals: vec![],
             user_text: Some("fix login".into()),
             status: RunStatus::Success,
             items: vec![
@@ -206,5 +248,36 @@ mod tests {
         assert_eq!(timeline[1].item_id.as_deref(), Some("phase"));
         assert_eq!(timeline[1].sequence, Some(1));
         assert_eq!(timeline[0].sequence, Some(2));
+    }
+
+    #[test]
+    fn project_session_events_from_turns_uses_canonical_items() {
+        let turn = SessionTurn {
+            id: "turn-1".into(),
+            session_id: "s1".into(),
+            run_id: Some("run-1".into()),
+            mode: "build".into(),
+            route: Some("tool_execution".into()),
+            route_source: None,
+            route_reason: None,
+            route_signals: vec![],
+            user_text: Some("fix login".into()),
+            status: RunStatus::Success,
+            items: vec![make_turn_item(
+                "phase",
+                SessionTurnItemKind::Phase,
+                "trace.phase.plan",
+                TimelineStatus::Success,
+                "2",
+            )],
+            created_at: "1".into(),
+            updated_at: "2".into(),
+            completed_at: Some("2".into()),
+        };
+        let events = project_session_events_from_turns("s1", &[turn]);
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].session_id, "s1");
+        assert_eq!(events[0].kind, "canonical.turn_item");
+        assert_eq!(events[0].title, "trace.phase.plan");
     }
 }

@@ -18,6 +18,11 @@ fn with_error_info(
         item.error_category = Some(info.category.clone());
         item.error_code = Some(info.code.to_string());
         item.retryable = Some(info.retryable);
+        item.retry_hint = info.retry_hint.map(str::to_string);
+        item.fallback_hint = info.fallback_hint.map(str::to_string);
+        if item.summary.is_none() {
+            item.summary = Some(info.user_message.to_string());
+        }
     }
     item
 }
@@ -38,6 +43,9 @@ pub(crate) fn create_session_turn(
         run_id: run_id.map(str::to_string),
         mode: mode.to_string(),
         route: route.map(str::to_string),
+        route_source: None,
+        route_reason: None,
+        route_signals: vec![],
         user_text: Some(user_text.to_string()),
         status: RunStatus::Running,
         items: vec![SessionTurnItem {
@@ -56,6 +64,8 @@ pub(crate) fn create_session_turn(
             error_category: None,
             error_code: None,
             retryable: None,
+            retry_hint: None,
+            fallback_hint: None,
             created_at: now.clone(),
             updated_at: now.clone(),
         }],
@@ -75,6 +85,33 @@ pub(crate) fn create_session_turn(
     let timeline = data.timeline_for_session(session_id);
     data.timelines.insert(session_id.to_string(), timeline);
     turn
+}
+
+pub(crate) fn update_session_turn_route(
+    data: &mut AppData,
+    session_id: &str,
+    turn_id: &str,
+    route: Option<&str>,
+    route_source: Option<&str>,
+    route_reason: Option<&str>,
+    route_signals: Vec<String>,
+) {
+    {
+        let turns = data
+            .session_turns
+            .entry(session_id.to_string())
+            .or_default();
+        let Some(turn) = turns.iter_mut().find(|turn| turn.id == turn_id) else {
+            return;
+        };
+        turn.route = route.map(str::to_string);
+        turn.route_source = route_source.map(str::to_string);
+        turn.route_reason = route_reason.map(str::to_string);
+        turn.route_signals = route_signals;
+        touch_turn(turn);
+    }
+    let timeline = data.timeline_for_session(session_id);
+    data.timelines.insert(session_id.to_string(), timeline);
 }
 
 pub(crate) fn upsert_turn_item(
@@ -155,6 +192,8 @@ pub(crate) fn tool_turn_item(
             error_category: None,
             error_code: None,
             retryable: None,
+            retry_hint: None,
+            fallback_hint: None,
             created_at: now.clone(),
             updated_at: now,
         },
@@ -163,6 +202,9 @@ pub(crate) fn tool_turn_item(
                 category: ErrorCategory::Tool,
                 code: "tool_failed",
                 retryable: false,
+                retry_hint: Some("缩小到具体文件或目录后重试"),
+                fallback_hint: Some("改用更小的 repo 操作或更强模型"),
+                user_message: "工具执行失败，建议缩小范围或分解任务。",
             })
         } else {
             None
@@ -199,6 +241,8 @@ fn runtime_turn_item(
         error_category: None,
         error_code: None,
         retryable: None,
+        retry_hint: None,
+        fallback_hint: None,
         created_at: now.clone(),
         updated_at: now,
     }
@@ -254,6 +298,30 @@ pub(crate) fn context_turn_item(
     )
 }
 
+pub(crate) fn compaction_turn_item(
+    turn_id: &str,
+    run_id: Option<&str>,
+    item_id: &str,
+    status: TimelineStatus,
+    summary: Option<String>,
+    detail: Option<String>,
+    correlation_id: Option<String>,
+    data_json: Option<String>,
+) -> SessionTurnItem {
+    runtime_turn_item(
+        turn_id,
+        run_id,
+        item_id,
+        SessionTurnItemKind::Compaction,
+        "context.compaction",
+        status,
+        summary,
+        detail,
+        correlation_id,
+        data_json,
+    )
+}
+
 pub(crate) fn model_turn_item(
     turn_id: &str,
     run_id: Option<&str>,
@@ -271,6 +339,29 @@ pub(crate) fn model_turn_item(
         SessionTurnItemKind::ModelRequest,
         "model.request",
         status,
+        summary,
+        detail,
+        correlation_id,
+        data_json,
+    )
+}
+
+pub(crate) fn reasoning_turn_item(
+    turn_id: &str,
+    run_id: Option<&str>,
+    item_id: &str,
+    summary: Option<String>,
+    detail: Option<String>,
+    correlation_id: Option<String>,
+    data_json: Option<String>,
+) -> SessionTurnItem {
+    runtime_turn_item(
+        turn_id,
+        run_id,
+        item_id,
+        SessionTurnItemKind::Reasoning,
+        "model.reasoning",
+        TimelineStatus::Success,
         summary,
         detail,
         correlation_id,
@@ -309,6 +400,8 @@ pub(crate) fn command_turn_item(
             error_category: None,
             error_code: None,
             retryable: None,
+            retry_hint: None,
+            fallback_hint: None,
             created_at: now.clone(),
             updated_at: now,
         },
@@ -345,6 +438,9 @@ pub(crate) fn validation_turn_item(
                 category: ErrorCategory::Validation,
                 code: "validation_failed",
                 retryable: false,
+                retry_hint: None,
+                fallback_hint: Some("先检查上下文和权限，再重新执行"),
+                user_message: "本轮被校验规则阻止，需要调整执行方式。",
             })
         } else {
             None
@@ -402,6 +498,8 @@ pub(crate) fn diff_turn_item(
         error_category: None,
         error_code: None,
         retryable: None,
+        retry_hint: None,
+        fallback_hint: None,
         created_at: now.clone(),
         updated_at: now,
     }
@@ -447,6 +545,8 @@ pub(crate) fn approval_turn_item(
             error_category: None,
             error_code: None,
             retryable: None,
+            retry_hint: None,
+            fallback_hint: None,
             created_at: now.clone(),
             updated_at: now,
         },
@@ -455,11 +555,17 @@ pub(crate) fn approval_turn_item(
                 category: ErrorCategory::Approval,
                 code: "approval_rejected",
                 retryable: false,
+                retry_hint: None,
+                fallback_hint: Some("调整变更范围后重新发起审批"),
+                user_message: "审批被拒绝，需要调整变更方案。",
             }),
             crate::state::ApprovalStatus::Failed => Some(&RuntimeErrorInfo {
                 category: ErrorCategory::Approval,
                 code: "approval_failed",
                 retryable: false,
+                retry_hint: None,
+                fallback_hint: Some("重新生成审批动作或缩小变更范围"),
+                user_message: "审批执行失败，需要重新确认本次变更方式。",
             }),
             _ => None,
         },
@@ -496,6 +602,8 @@ pub(crate) fn artifact_turn_item(
         error_category: None,
         error_code: None,
         retryable: None,
+        retry_hint: None,
+        fallback_hint: None,
         created_at: now.clone(),
         updated_at: now,
     }
@@ -537,6 +645,8 @@ mod tests {
                 error_category: None,
                 error_code: None,
                 retryable: None,
+                retry_hint: None,
+                fallback_hint: None,
                 created_at: "1".into(),
                 updated_at: "1".into(),
             },
@@ -581,6 +691,8 @@ mod tests {
                 error_category: None,
                 error_code: None,
                 retryable: None,
+                retry_hint: None,
+                fallback_hint: None,
                 created_at: "created-1".into(),
                 updated_at: "updated-1".into(),
             },
@@ -605,6 +717,8 @@ mod tests {
                 error_category: None,
                 error_code: None,
                 retryable: None,
+                retry_hint: None,
+                fallback_hint: None,
                 created_at: "created-2".into(),
                 updated_at: "updated-2".into(),
             },

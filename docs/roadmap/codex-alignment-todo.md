@@ -11,17 +11,21 @@
 ## P0
 
 - [ ] 统一 `TurnItem` schema，覆盖 `user_message / assistant_message / reasoning / tool / command / diff / approval / compaction / validation / error`
-      当前已落地 `phase / context / model_request / validation`，`command` 仍待接入真实执行链路。
+      当前已落地 `phase / context / model_request / validation / command / tool / diff / approval / artifact / error`；`reasoning / compaction` 仍待补齐。
 - [ ] 让 timeline、workflow card、trace export 全部从 canonical turn items 投影，而不是各自维护状态
-      当前 workflow card 主视图已优先读取 `SessionTurn.items`，timeline 继续作为 fallback / projection。
+      当前 workflow card 主视图与 timeline 已优先从 `SessionTurn.items` 投影；trace export 仍保留双轨数据，旧 `session_events` 还没完全退成 projection。
 - [ ] 用流式事件替代轮询，至少先做到本地 Tauri session 事件推送
 - [ ] 发送消息后立刻创建 optimistic run shell，并在同一 run 上持续填充状态
-- [ ] 做 session preflight：每轮执行前明确 `repo_root / repo_name / session_title / mode / route / permission context`
+- [x] 做 session preflight：每轮执行前明确 `repo_root / repo_name / session_title / mode / route / permission context`
 - [ ] 强化 repo anchoring，杜绝“进入项目会话后模型像没站在 repo 里”这一类错位
+      当前 preflight 已固定 repo identity / route / permission context，但所有入口的一致性和人工回归还没完全收口。
 - [ ] 统一所有 mutation 的 diff provenance：`apply_patch / unified diff / direct write / approval replay / rollback`
+      当前 `apply_patch / unified diff / direct write / approval replay` 已接入 structured provenance；rollback 已接入真实 backend 流程，但 rollback 变更视图仍待继续收口。
 - [ ] 所有 mutation 统一生成 `runId` 归属的 artifact 和 rollback metadata
-- [ ] 拆分错误类型：`transport / provider / model / routing / tool / approval / validation / rollback`
+      当前 patch / direct write / approval replay 已统一带 `runId / artifact_group_id / rollback_meta_path`；旧字符串 provenance 还需继续清理。
+- [x] 拆分错误类型：`transport / provider / model / routing / tool / approval / validation / rollback`
 - [ ] 为每类错误定义明确的 retry / fallback / user-facing message
+      当前 `transport / provider / model / command` 已有初步收口；`tool / routing / rollback / approval` 仍需继续系统化。
 
 ## P1
 
@@ -33,6 +37,7 @@
 - [ ] 引入 hidden internal agents，用于 explore、compaction、summary、review 等内部任务
 - [ ] 把 terminal 升级为 workspace-scoped、多 tab、可恢复 buffer
 - [ ] 让 terminal 与 run / tool / file changes 建立更强关联
+      当前 terminal 已进入 canonical `run / turn / command item`，但多 tab、buffer 恢复、文件变化关联还没完成。
 
 ## P2
 
@@ -52,8 +57,8 @@
 
 ## 每轮开发后的验证清单
 
-- [ ] `cargo test`
-- [ ] `npm run build`
+- [x] `cargo test`
+- [x] `npm run build`
 - [ ] 至少一次真实会话人工回归：确认 repo anchoring 正常
 - [ ] 至少一次 mutation 回归：确认工作流卡片、Diff、Tools、Artifacts、Rollback 都归属到正确 run
 - [ ] 至少一次错误路径回归：确认失败信息可解释且不会导致“整轮失忆”

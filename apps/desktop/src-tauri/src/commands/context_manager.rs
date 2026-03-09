@@ -8,6 +8,7 @@ const COMPACT_KEEP_RECENT: usize = 12;
 const SUMMARY_MAX_CHARS: usize = 6000;
 const FAILURE_PREVIEW_LIMIT: usize = 4;
 const MEMORY_PREVIEW_CHARS: usize = 1200;
+const TOOL_OUTPUT_PRUNE_CHARS: usize = 1200;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -17,6 +18,16 @@ pub struct ContextBudgetStats {
     pub memory_chars: usize,
     pub visible_turns: usize,
     pub max_visible_history: usize,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ContextTokenBreakdown {
+    pub history_tokens: usize,
+    pub summary_tokens: usize,
+    pub memory_tokens: usize,
+    pub pruned_tool_output_tokens: usize,
+    pub total_tokens: usize,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -72,9 +83,20 @@ pub struct SessionContextDebugSnapshot {
     pub estimated_tokens: usize,
     pub compacted: bool,
     pub budget: ContextBudgetStats,
+    pub token_breakdown: ContextTokenBreakdown,
     pub normalization: HistoryNormalizationStats,
     pub compaction: ContextCompactionStats,
+    pub prune: ToolOutputPruneStats,
     pub recent_failures: Vec<ContextDebugTurn>,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ToolOutputPruneStats {
+    pub applied: bool,
+    pub pruned_turns: usize,
+    pub chars_removed: usize,
+    pub kept_chars: usize,
 }
 
 pub(crate) struct ContextAssembly {
@@ -85,8 +107,10 @@ pub(crate) struct ContextAssembly {
     pub visible_history: Vec<ContextDebugTurn>,
     pub memory_blocks: Vec<ContextDebugMemoryBlock>,
     pub budget: ContextBudgetStats,
+    pub token_breakdown: ContextTokenBreakdown,
     pub normalization: HistoryNormalizationStats,
     pub compaction: ContextCompactionStats,
+    pub prune: ToolOutputPruneStats,
     pub recent_failures: Vec<ContextDebugTurn>,
 }
 
@@ -220,6 +244,54 @@ fn build_visible_history(history: &[ChatTurn]) -> Vec<ContextDebugTurn> {
         .collect()
 }
 
+fn looks_like_tool_output(turn: &ChatTurn) -> bool {
+    if turn.role == "user" {
+        return false;
+    }
+    let content = turn.content.trim();
+    let lower = content.to_ascii_lowercase();
+    content.chars().count() > TOOL_OUTPUT_PRUNE_CHARS
+        || lower.contains("\"files\"")
+        || lower.contains("\"matches\"")
+        || lower.contains("\"stdout\"")
+        || lower.contains("\"stderr\"")
+        || content.lines().count() > 40
+}
+
+fn prune_tool_output_turns(history: &[ChatTurn]) -> (Vec<ChatTurn>, ToolOutputPruneStats) {
+    let mut pruned_turns = 0usize;
+    let mut chars_removed = 0usize;
+    let mut kept_chars = 0usize;
+    let turns = history
+        .iter()
+        .map(|turn| {
+            if !looks_like_tool_output(turn) {
+                kept_chars += turn.content.chars().count();
+                return turn.clone();
+            }
+            let original_chars = turn.content.chars().count();
+            let clipped = clip_chars(&turn.content, TOOL_OUTPUT_PRUNE_CHARS);
+            let content = format!("[Pruned Tool Output]\n{}", clipped);
+            pruned_turns += 1;
+            chars_removed += original_chars.saturating_sub(content.chars().count());
+            kept_chars += content.chars().count();
+            ChatTurn {
+                role: turn.role.clone(),
+                content,
+            }
+        })
+        .collect::<Vec<_>>();
+    (
+        turns,
+        ToolOutputPruneStats {
+            applied: pruned_turns > 0,
+            pruned_turns,
+            chars_removed,
+            kept_chars,
+        },
+    )
+}
+
 fn build_visible_messages(
     visible_history: &[ContextDebugTurn],
     summary: &str,
@@ -289,6 +361,10 @@ pub(crate) fn estimate_token_budget(messages: &[serde_json::Value], memory_conte
     (chars / 4).max(1)
 }
 
+fn estimate_tokens_from_chars(chars: usize) -> usize {
+    (chars / 4).max(1)
+}
+
 fn build_context_budget(
     visible_history: &[ContextDebugTurn],
     summary: &str,
@@ -329,12 +405,20 @@ fn build_context_assembly(
     }
 
     let normalized = normalize_history(&history);
-    let visible_history = build_visible_history(&normalized.turns);
+    let (pruned_turns, prune) = prune_tool_output_turns(&normalized.turns);
+    let visible_history = build_visible_history(&pruned_turns);
     let messages = build_visible_messages(&visible_history, &summary);
     let memory_blocks = read_all_memory_blocks(repo_root).unwrap_or_default();
     let memory_context = memory_blocks_to_prompt(&memory_blocks);
     let budget = build_context_budget(&visible_history, &summary, &memory_context);
     let estimated_tokens = estimate_token_budget(&messages, &memory_context);
+    let token_breakdown = ContextTokenBreakdown {
+        history_tokens: estimate_tokens_from_chars(budget.history_chars),
+        summary_tokens: estimate_tokens_from_chars(budget.summary_chars),
+        memory_tokens: estimate_tokens_from_chars(budget.memory_chars),
+        pruned_tool_output_tokens: estimate_tokens_from_chars(prune.chars_removed),
+        total_tokens: estimated_tokens,
+    };
     let recent_failures = collect_recent_failures(&normalized.turns);
 
     ContextAssembly {
@@ -345,8 +429,10 @@ fn build_context_assembly(
         visible_history,
         memory_blocks: build_memory_debug(&memory_blocks),
         budget,
+        token_breakdown,
         normalization: normalized.stats,
         compaction,
+        prune,
         recent_failures,
     }
 }
@@ -374,8 +460,10 @@ pub(crate) fn build_session_context_debug_snapshot(
         estimated_tokens: assembly.estimated_tokens,
         compacted: assembly.compaction.applied || assembly.compaction.would_apply,
         budget: assembly.budget,
+        token_breakdown: assembly.token_breakdown,
         normalization: assembly.normalization,
         compaction: assembly.compaction,
+        prune: assembly.prune,
         recent_failures: assembly.recent_failures,
     })
 }

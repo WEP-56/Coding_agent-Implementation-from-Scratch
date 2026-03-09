@@ -69,12 +69,28 @@ export interface SessionEvent {
   seq: number;
 }
 
+export interface SessionStateChangedEvent {
+  sessionId: string;
+  reason: string;
+  runId?: string | null;
+  turnId?: string | null;
+  changedAt: string;
+}
+
 export interface ContextBudgetStats {
   historyChars: number;
   summaryChars: number;
   memoryChars: number;
   visibleTurns: number;
   maxVisibleHistory: number;
+}
+
+export interface ContextTokenBreakdown {
+  historyTokens: number;
+  summaryTokens: number;
+  memoryTokens: number;
+  prunedToolOutputTokens: number;
+  totalTokens: number;
 }
 
 export interface HistoryNormalizationStats {
@@ -120,8 +136,15 @@ export interface SessionContextDebugSnapshot {
   estimatedTokens: number;
   compacted: boolean;
   budget: ContextBudgetStats;
+  tokenBreakdown: ContextTokenBreakdown;
   normalization: HistoryNormalizationStats;
   compaction: ContextCompactionStats;
+  prune: {
+    applied: boolean;
+    prunedTurns: number;
+    charsRemoved: number;
+    keptChars: number;
+  };
   recentFailures: ContextDebugTurn[];
 }
 
@@ -214,8 +237,10 @@ export type SessionTurnItemKind =
   | "user_message"
   | "assistant_message"
   | "error"
+  | "reasoning"
   | "phase"
   | "context"
+  | "compaction"
   | "model_request"
   | "validation"
   | "command"
@@ -252,6 +277,8 @@ export interface SessionTurnItem {
   errorCategory?: ErrorCategory | null;
   errorCode?: string | null;
   retryable?: boolean | null;
+  retryHint?: string | null;
+  fallbackHint?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -262,6 +289,9 @@ export interface SessionTurn {
   runId?: string | null;
   mode: string;
   route?: string | null;
+  routeSource?: string | null;
+  routeReason?: string | null;
+  routeSignals: string[];
   userText?: string | null;
   status: "running" | "success" | "failed";
   items: SessionTurnItem[];
@@ -346,9 +376,17 @@ export interface ArtifactItem {
 export interface TraceBundle {
   sessionId: string;
   exportedAt: string;
+  projection?: {
+    timelineSource: "session_turn_items" | "session_events" | "cached_timeline";
+    canonicalTurnCount: number;
+    canonicalItemCount: number;
+    legacyEventCount: number;
+  };
   sessionRuns: SessionRun[];
   sessionTurns?: SessionTurn[];
+  canonicalItems?: SessionTurnItem[];
   sessionEvents: SessionEvent[];
+  legacySessionEvents?: SessionEvent[];
   timeline: TimelineStep[];
   toolCalls: ToolCallItem[];
   approvals: ApprovalRequest[];

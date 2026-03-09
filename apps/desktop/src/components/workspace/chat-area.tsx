@@ -56,79 +56,38 @@ function buildTranscript(
   messages: ChatMessage[],
   sessionRuns: SessionRun[],
 ): TranscriptItem[] {
-  const orderedRuns = [...sessionRuns].sort(
-    (a, b) => toSortableTime(a.createdAt) - toSortableTime(b.createdAt),
-  );
-  const runSlots = new Map<number, SessionRun[]>();
-  const unmatchedRuns: SessionRun[] = [];
-  const usedUserIndexes = new Set<number>();
-  let searchStart = 0;
+  const transcript: TranscriptItem[] = [
+    ...messages.map((message) => ({
+      key: message.id,
+      kind: "message" as const,
+      message,
+    })),
+    ...sessionRuns
+      .filter((run) => run.mode !== "terminal")
+      .map((run) => ({
+        key: `run-${run.id}`,
+        kind: "run" as const,
+        run,
+      })),
+  ];
 
-  for (const run of orderedRuns) {
-    let matchedIndex = -1;
-
-    for (let index = searchStart; index < messages.length; index += 1) {
-      const message = messages[index];
-      if (message.role !== "user" || usedUserIndexes.has(index)) continue;
-      if (message.content === run.userText) {
-        matchedIndex = index;
-        break;
-      }
+  transcript.sort((lhs, rhs) => {
+    const lhsTime =
+      lhs.kind === "message"
+        ? toSortableTime(lhs.message.createdAt)
+        : toSortableTime(lhs.run.createdAt);
+    const rhsTime =
+      rhs.kind === "message"
+        ? toSortableTime(rhs.message.createdAt)
+        : toSortableTime(rhs.run.createdAt);
+    if (lhsTime !== rhsTime) return lhsTime - rhsTime;
+    if (lhs.kind !== rhs.kind) {
+      return lhs.kind === "message" ? -1 : 1;
     }
+    return lhs.key.localeCompare(rhs.key);
+  });
 
-    if (matchedIndex === -1) {
-      for (let index = searchStart; index < messages.length; index += 1) {
-        const message = messages[index];
-        if (message.role !== "user" || usedUserIndexes.has(index)) continue;
-        matchedIndex = index;
-        break;
-      }
-    }
-
-    if (matchedIndex === -1) {
-      unmatchedRuns.push(run);
-      continue;
-    }
-
-    usedUserIndexes.add(matchedIndex);
-    searchStart = matchedIndex + 1;
-    const bucket = runSlots.get(matchedIndex) ?? [];
-    bucket.push(run);
-    runSlots.set(matchedIndex, bucket);
-  }
-
-  const items: TranscriptItem[] = [];
-  for (const [index, message] of messages.entries()) {
-    items.push({ key: message.id, kind: "message", message });
-    const matchedRuns = runSlots.get(index) ?? [];
-    for (const run of matchedRuns) {
-      items.push({ key: `run-${run.id}`, kind: "run", run });
-    }
-  }
-
-  const itemTime = (item: TranscriptItem): number =>
-    item.kind === "message"
-      ? toSortableTime(item.message.createdAt)
-      : toSortableTime(item.run.createdAt);
-
-  for (const run of unmatchedRuns) {
-    const runItem: TranscriptItem = { key: `run-${run.id}`, kind: "run", run };
-    const runTime = toSortableTime(run.createdAt);
-    let insertionIndex = -1;
-    for (let index = items.length - 1; index >= 0; index -= 1) {
-      if (itemTime(items[index]) <= runTime) {
-        insertionIndex = index;
-        break;
-      }
-    }
-    if (insertionIndex === -1) {
-      items.unshift(runItem);
-    } else {
-      items.splice(insertionIndex + 1, 0, runItem);
-    }
-  }
-
-  return items;
+  return transcript;
 }
 
 function MessageBubble({ message }: { message: ChatMessage }) {

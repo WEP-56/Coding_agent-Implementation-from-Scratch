@@ -183,10 +183,25 @@ fn build_simple_unified_diff(path: &str, before: &str, after: &str) -> String {
     out
 }
 
+fn count_diff_lines(unified: &str) -> (i32, i32) {
+    let mut additions = 0i32;
+    let mut deletions = 0i32;
+    for line in unified.lines() {
+        if line.starts_with("+++") || line.starts_with("---") {
+            continue;
+        }
+        if line.starts_with('+') {
+            additions += 1;
+        } else if line.starts_with('-') {
+            deletions += 1;
+        }
+    }
+    (additions, deletions)
+}
+
 pub(crate) fn build_direct_write_diff(path: &str, before: &str, after: &str) -> DiffFile {
-    let added_lines = after.lines().count().saturating_sub(before.lines().count()) as i32;
-    let removed_lines = before.lines().count().saturating_sub(after.lines().count()) as i32;
     let unified = build_simple_unified_diff(path, before, after);
+    let (added_lines, removed_lines) = count_diff_lines(&unified);
 
     DiffFile {
         id: format!("d-{}", now_millis_str()),
@@ -448,17 +463,18 @@ pub(crate) fn apply_unified_diff_inner(
     }
 
     for s in staged {
-        let additions = (s.after.lines().count() as i32) - (s.before.lines().count() as i32);
+        let unified = build_simple_unified_diff(&s.path, &s.before, &s.after);
+        let (additions, deletions) = count_diff_lines(&unified);
         out.push(DiffFile {
             id: format!("d-{}", now_millis_str()),
             path: s.path,
             run_id: None,
-            additions: additions.max(0),
-            deletions: (-additions).max(0),
+            additions,
+            deletions,
             old_snippet: s.before.chars().take(600).collect::<String>(),
             new_snippet: s.after.chars().take(600).collect::<String>(),
-            unified_snippet: diff_text.chars().take(1200).collect::<String>(),
-            diff: diff_text.to_string(),
+            unified_snippet: unified.chars().take(1200).collect::<String>(),
+            diff: unified,
             mutation_provenance: None,
         });
     }
@@ -586,17 +602,19 @@ pub(crate) fn apply_codex_style_patch_inner(
 
     let mut out: Vec<DiffFile> = Vec::new();
     for s in staged {
-        let additions = (s.after.lines().count() as i32) - (s.before.lines().count() as i32);
+        let path = s.move_to.clone().unwrap_or_else(|| s.path.clone());
+        let unified = build_simple_unified_diff(&path, &s.before, &s.after);
+        let (additions, deletions) = count_diff_lines(&unified);
         out.push(DiffFile {
             id: format!("d-{}", now_millis_str()),
-            path: s.move_to.unwrap_or(s.path),
+            path,
             run_id: None,
-            additions: additions.max(0),
-            deletions: (-additions).max(0),
+            additions,
+            deletions,
             old_snippet: s.before.chars().take(600).collect::<String>(),
             new_snippet: s.after.chars().take(600).collect::<String>(),
-            unified_snippet: patch_text.chars().take(1200).collect::<String>(),
-            diff: patch_text.to_string(),
+            unified_snippet: unified.chars().take(1200).collect::<String>(),
+            diff: unified,
             mutation_provenance: None,
         });
     }

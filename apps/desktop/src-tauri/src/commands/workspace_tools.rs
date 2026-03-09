@@ -5,13 +5,14 @@ use crate::commands::session_runtime::{
 };
 use crate::commands::turn_manager::{command_turn_item, complete_session_turn, upsert_turn_item};
 use crate::error_taxonomy::{classify_error, ErrorContext};
+use crate::runtime_events::save_and_emit_session;
 use crate::state::AppState;
 use serde::Serialize;
 use serde_json::json;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tauri::async_runtime::spawn_blocking;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -140,6 +141,7 @@ pub async fn run_terminal_command(
     session_id: String,
     command: String,
     cwd: Option<String>,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<TerminalCommandResult, String> {
     let command = command.trim().to_string();
@@ -224,7 +226,15 @@ pub async fn run_terminal_command(
                 None,
             ),
         );
-        state.save_locked(&data)?;
+        save_and_emit_session(
+            &state,
+            &app,
+            &data,
+            &session_id,
+            "command-started",
+            Some(&run.id),
+            Some(&run.turn_id),
+        )?;
         (
             repo_root,
             initial_cwd,
@@ -349,7 +359,15 @@ pub async fn run_terminal_command(
                 None,
                 None,
             );
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                &state,
+                &app,
+                &data,
+                &session_id,
+                "command-failed",
+                Some(&run_id),
+                Some(&turn_id),
+            )?;
             return Err(err);
         }
     };
@@ -427,7 +445,15 @@ pub async fn run_terminal_command(
                 None,
                 None,
             );
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                &state,
+                &app,
+                &data,
+                &session_id,
+                "command-failed",
+                Some(&run_id),
+                Some(&turn_id),
+            )?;
             return Err(err);
         }
     };
@@ -567,7 +593,15 @@ pub async fn run_terminal_command(
             None,
             None,
         );
-        state.save_locked(&data)?;
+        save_and_emit_session(
+            &state,
+            &app,
+            &data,
+            &session_id,
+            "command-completed",
+            Some(&run_id),
+            Some(&turn_id),
+        )?;
     }
 
     Ok(TerminalCommandResult {

@@ -93,6 +93,44 @@ fn tool_error_message(call_id: &str, error: &str) -> serde_json::Value {
     json!({"role":"tool","tool_call_id": call_id, "content": json!({"error": error}).to_string()})
 }
 
+fn apply_patch_context_mismatch_message(
+    call_id: &str,
+    error: &str,
+    patch_text: &str,
+) -> serde_json::Value {
+    let target_paths = crate::patch_apply::parse_apply_patch(patch_text)
+        .ok()
+        .map(|args| {
+            args.hunks
+                .into_iter()
+                .map(|hunk| match hunk {
+                    crate::patch_apply::PatchHunk::AddFile { path, .. } => {
+                        path.to_string_lossy().replace('\\', "/")
+                    }
+                    crate::patch_apply::PatchHunk::DeleteFile { path } => {
+                        path.to_string_lossy().replace('\\', "/")
+                    }
+                    crate::patch_apply::PatchHunk::UpdateFile { path, .. } => {
+                        path.to_string_lossy().replace('\\', "/")
+                    }
+                })
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
+    json!({
+        "role":"tool",
+        "tool_call_id": call_id,
+        "content": json!({
+            "error": error,
+            "code": "apply_patch_context_mismatch",
+            "retry_hint": "Read the target file again and regenerate the patch against current disk content. Do not retry the same patch.",
+            "fallback_hint": "Prefer repo_read_file before applying another patch.",
+            "recommended_tools": ["repo_read_file"],
+            "target_paths": target_paths,
+        }).to_string()
+    })
+}
+
 fn parse_tool_args(arguments: &str) -> Result<serde_json::Value, String> {
     serde_json::from_str::<serde_json::Value>(arguments)
         .map_err(|e| format!("invalid tool arguments: {}", e))
@@ -134,11 +172,23 @@ pub(crate) fn describe_tool_request(name: &str, args: &serde_json::Value) -> Str
 
 pub(crate) fn describe_tool_result(name: &str, payload: &serde_json::Value, ok: bool) -> String {
     if !ok {
-        return payload
-            .get("content")
-            .and_then(|v| v.as_str())
-            .map(|s| s.to_string())
-            .unwrap_or_else(|| format!("{} 执行失败", name));
+        if let Some(content) = payload.get("content").and_then(|v| v.as_str()) {
+            if let Ok(parsed) = serde_json::from_str::<serde_json::Value>(content) {
+                if let Some(error) = parsed.get("error").and_then(|v| v.as_str()) {
+                    let retry_hint = parsed
+                        .get("retry_hint")
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("");
+                    return if retry_hint.is_empty() {
+                        error.to_string()
+                    } else {
+                        format!("{} | {}", error, retry_hint)
+                    };
+                }
+            }
+            return content.to_string();
+        }
+        return format!("{} 执行失败", name);
     }
     let content = payload
         .get("content")
@@ -402,7 +452,15 @@ pub(crate) fn run_tool_call_inner(
                     }
                     tool_result_message(&tool.id, json!({"files": persisted.diffs}))
                 }
-                Err(e) => tool_error_message(&tool.id, &e),
+                Err(e) => {
+                    if e.contains("failed to find expected lines for replacement")
+                        || e.contains("context mismatch")
+                    {
+                        apply_patch_context_mismatch_message(&tool.id, &e, patch_text)
+                    } else {
+                        tool_error_message(&tool.id, &e)
+                    }
+                }
             }
         }
         "repo_list_tree" => match list_repo_tree_inner(repo_root) {

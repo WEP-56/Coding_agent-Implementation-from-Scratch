@@ -263,7 +263,7 @@ pub(crate) enum IntentDecisionSource {
 }
 
 impl IntentDecisionSource {
-    fn as_str(&self) -> &'static str {
+    pub(crate) fn as_str(&self) -> &'static str {
         match self {
             Self::Heuristic => "heuristic",
             Self::Model => "model",

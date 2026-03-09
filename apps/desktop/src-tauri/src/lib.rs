@@ -1,6 +1,7 @@
 mod commands;
 mod error_taxonomy;
 mod patch_apply;
+mod runtime_events;
 mod state;
 mod timeline_projection;
 

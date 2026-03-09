@@ -8,6 +8,7 @@ import {
   getLogs,
   getTimeline,
   getToolCalls,
+  listenSessionStateChanged,
   listRepos,
   listSessions,
   rollbackPatchArtifact,
@@ -109,6 +110,8 @@ export function WorkspacePage() {
   const { settings } = useSettingsStore();
   const { getPolicy, setPolicy } = useSecurityStore();
   const rootRef = useRef<HTMLDivElement | null>(null);
+  const currentSessionIdRef = useRef<string | null>(currentSessionId);
+  const refreshTimerRef = useRef<number | null>(null);
   const pendingSensitiveAllowRef = useRef<null | (() => void)>(null);
   const [resizing, setResizing] = useState<null | "left" | "right">(null);
   const [newSessionTitle, setNewSessionTitle] = useState("");
@@ -166,6 +169,34 @@ export function WorkspacePage() {
   }, [currentRepoId, setSessions, setLoadingSessions, setError]);
 
   useEffect(() => {
+    currentSessionIdRef.current = currentSessionId;
+  }, [currentSessionId]);
+
+  useEffect(() => {
+    let active = true;
+    let dispose: (() => void) | null = null;
+    void listenSessionStateChanged((event) => {
+      if (!active) return;
+      if (event.sessionId !== currentSessionIdRef.current) return;
+      scheduleWorkflowRefresh(event.sessionId, 60);
+    }).then((unlisten) => {
+      if (!active) {
+        unlisten();
+        return;
+      }
+      dispose = unlisten;
+    });
+    return () => {
+      active = false;
+      if (dispose) dispose();
+      if (refreshTimerRef.current !== null) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     // global sessions secondary view
     Promise.all(repos.map((r) => listSessions(r.id)))
       .then((all) => {
@@ -180,11 +211,16 @@ export function WorkspacePage() {
     setLoadingTimeline(true);
     if (!currentSessionId) {
       setTimeline([]);
+      setDiffFiles([]);
+      setToolCalls([]);
+      setLogs([]);
+      setArtifacts([]);
       setLoadingTimeline(false);
       return;
     }
-    getTimeline(currentSessionId)
-      .then((items) => {
+    refreshWorkflowState(currentSessionId)
+      .then(() => {
+        const items = useSessionStore.getState().timeline;
         setTimeline(items);
         const failed = items.find((i) => i.status === "failed");
         const running = items.find((i) => i.status === "running");
@@ -205,36 +241,28 @@ export function WorkspacePage() {
       .catch((e) => {
         setError(`加载时间线失败：${String(e)}`);
         setTimeline([]);
+        setDiffFiles([]);
+        setToolCalls([]);
+        setLogs([]);
+        setArtifacts([]);
       })
       .finally(() => setLoadingTimeline(false));
-  }, [currentSessionId, setTimeline, setLoadingTimeline, setError, pushToast]);
+  }, [
+    currentSessionId,
+    setTimeline,
+    setDiffFiles,
+    setToolCalls,
+    setLogs,
+    setArtifacts,
+    setLoadingTimeline,
+    setError,
+    pushToast,
+  ]);
 
   useEffect(() => {
     if (!currentSessionId || timeline.length === 0) return;
     timelineRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [timeline, currentSessionId]);
-
-  useEffect(() => {
-    if (!currentSessionId) {
-      setDiffFiles([]);
-      setToolCalls([]);
-      setLogs([]);
-      setArtifacts([]);
-      return;
-    }
-    getDiffFiles(currentSessionId)
-      .then(setDiffFiles)
-      .catch(() => setDiffFiles([]));
-    getToolCalls(currentSessionId)
-      .then(setToolCalls)
-      .catch(() => setToolCalls([]));
-    getLogs(currentSessionId)
-      .then(setLogs)
-      .catch(() => setLogs([]));
-    getArtifacts(currentSessionId)
-      .then(setArtifacts)
-      .catch(() => setArtifacts([]));
-  }, [currentSessionId, setArtifacts, setDiffFiles, setLogs, setToolCalls]);
 
   useEffect(() => {
     if (!resizing) return;
@@ -277,6 +305,32 @@ export function WorkspacePage() {
   const timelineRef = useRef<HTMLDivElement | null>(null);
   const canUndo = canUndoTimeline();
   const canRedo = canRedoTimeline();
+
+  const refreshWorkflowState = (sessionId: string) =>
+    Promise.all([
+      getTimeline(sessionId),
+      getDiffFiles(sessionId),
+      getToolCalls(sessionId),
+      getLogs(sessionId),
+      getArtifacts(sessionId),
+    ]).then(([items, diffs, tools, logItems, artifactItems]) => {
+      if (currentSessionIdRef.current !== sessionId) return;
+      setTimeline(items);
+      setDiffFiles(diffs);
+      setToolCalls(tools);
+      setLogs(logItems);
+      setArtifacts(artifactItems);
+    });
+
+  const scheduleWorkflowRefresh = (sessionId: string, delay = 80) => {
+    if (refreshTimerRef.current !== null) {
+      window.clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = window.setTimeout(() => {
+      refreshTimerRef.current = null;
+      void refreshWorkflowState(sessionId).catch(() => undefined);
+    }, delay);
+  };
 
   const requestSensitiveAction = (
     action: "install_dependency" | "run_shell",
@@ -389,10 +443,12 @@ export function WorkspacePage() {
     if (!currentSessionId) return;
     appendMessage(currentSessionId, "user", text);
     setLoadingTimeline(true);
+    scheduleWorkflowRefresh(currentSessionId, 80);
     runSessionMessage(currentSessionId, mode, text)
       .then((result) => {
         appendMessage(currentSessionId, "assistant", result.assistantMessage);
         setTimeline(result.timeline);
+        scheduleWorkflowRefresh(currentSessionId, 20);
         pushToast({
           kind: "info",
           title: "已生成新执行轮次",
@@ -401,6 +457,7 @@ export function WorkspacePage() {
       })
       .catch((e) => {
         appendMessage(currentSessionId, "system", `执行失败：${String(e)}`);
+        scheduleWorkflowRefresh(currentSessionId, 20);
         pushToast({ kind: "error", title: "执行失败", message: String(e) });
       })
       .finally(() => setLoadingTimeline(false));
@@ -1016,25 +1073,7 @@ export function WorkspacePage() {
                   }
                   setLoadingTimeline(true);
                   rollbackPatchArtifact(currentSessionId, rollbackMetaPath)
-                    .then(() =>
-                      Promise.all([
-                        getTimeline(currentSessionId)
-                          .then(setTimeline)
-                          .catch(() => setTimeline([])),
-                        getDiffFiles(currentSessionId)
-                          .then(setDiffFiles)
-                          .catch(() => setDiffFiles([])),
-                        getToolCalls(currentSessionId)
-                          .then(setToolCalls)
-                          .catch(() => setToolCalls([])),
-                        getLogs(currentSessionId)
-                          .then(setLogs)
-                          .catch(() => setLogs([])),
-                        getArtifacts(currentSessionId)
-                          .then(setArtifacts)
-                          .catch(() => setArtifacts([])),
-                      ]),
-                    )
+                    .then(() => refreshWorkflowState(currentSessionId))
                     .then(() => {
                       pushToast({
                         kind: "warning",

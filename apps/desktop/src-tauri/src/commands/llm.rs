@@ -6,9 +6,13 @@ use crate::commands::llm_support::{
 };
 use crate::commands::policy::{push_trace_event_for_run, push_turn_event_for_run};
 use crate::commands::repo::build_repo_context;
-use crate::commands::turn_manager::{tool_turn_item, upsert_turn_item};
+use crate::commands::turn_manager::{
+    compaction_turn_item, reasoning_turn_item, tool_turn_item, upsert_turn_item,
+};
+use crate::runtime_events::save_and_emit_session;
 use crate::state::{AppSettings, AppState, ChatTurn, TimelineStatus, ToolCallItem};
-use tauri::State;
+use serde_json::json;
+use tauri::{AppHandle, State};
 
 fn has_complete_openai_config(settings: &AppSettings) -> bool {
     !settings.model.base_url.trim().is_empty()
@@ -100,6 +104,7 @@ pub(crate) async fn run_model_tool_loop(
     text: &str,
     run_id: &str,
     turn_id: &str,
+    app: &AppHandle,
     state: &State<'_, AppState>,
 ) -> Result<String, String> {
     let (settings, repo_context, repo_path, context) = {
@@ -163,7 +168,44 @@ pub(crate) async fn run_model_tool_loop(
             "session",
             None,
         );
-        state.save_locked(&data)?;
+        if context.compaction.would_apply {
+            upsert_turn_item(
+                &mut data,
+                session_id,
+                turn_id,
+                compaction_turn_item(
+                    turn_id,
+                    Some(run_id),
+                    &format!("{turn_id}-compaction"),
+                    if context.compaction.applied {
+                        TimelineStatus::Success
+                    } else {
+                        TimelineStatus::Pending
+                    },
+                    Some(format!(
+                        "dropped_turns={} kept_recent={} summary_entries_added={}",
+                        context.compaction.dropped_turns,
+                        context.compaction.kept_recent,
+                        context.compaction.summary_entries_added
+                    )),
+                    Some(
+                        serde_json::to_string(&context.compaction)
+                            .unwrap_or_else(|_| "compaction".into()),
+                    ),
+                    None,
+                    serde_json::to_string(&context.compaction).ok(),
+                ),
+            );
+        }
+        save_and_emit_session(
+            state,
+            app,
+            &data,
+            session_id,
+            "run-runtime-updated",
+            Some(run_id),
+            Some(turn_id),
+        )?;
     }
 
     let memory_context = context.memory_context.clone();
@@ -194,7 +236,15 @@ pub(crate) async fn run_model_tool_loop(
             None,
             None,
         );
-        state.save_locked(&data)?;
+        save_and_emit_session(
+            state,
+            app,
+            &data,
+            session_id,
+            "run-runtime-updated",
+            Some(run_id),
+            Some(turn_id),
+        )?;
     }
 
     loop {
@@ -226,7 +276,15 @@ pub(crate) async fn run_model_tool_loop(
                 "model",
                 None,
             );
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                state,
+                app,
+                &data,
+                session_id,
+                "run-runtime-updated",
+                Some(run_id),
+                Some(turn_id),
+            )?;
         }
 
         let body = match call_openai_compatible(
@@ -270,7 +328,15 @@ pub(crate) async fn run_model_tool_loop(
                         Some(model_item_id),
                         Some("model_request".into()),
                     );
-                    state.save_locked(&data)?;
+                    save_and_emit_session(
+                        state,
+                        app,
+                        &data,
+                        session_id,
+                        "run-runtime-updated",
+                        Some(run_id),
+                        Some(turn_id),
+                    )?;
                     final_content = Some(tool_failure_guard_message(&tool_events));
                     break;
                 }
@@ -307,7 +373,15 @@ pub(crate) async fn run_model_tool_loop(
                     "model",
                     None,
                 );
-                state.save_locked(&data)?;
+                save_and_emit_session(
+                    state,
+                    app,
+                    &data,
+                    session_id,
+                    "run-runtime-updated",
+                    Some(run_id),
+                    Some(turn_id),
+                )?;
                 return Err(err);
             }
         };
@@ -338,7 +412,15 @@ pub(crate) async fn run_model_tool_loop(
                 "model",
                 None,
             );
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                state,
+                app,
+                &data,
+                session_id,
+                "run-runtime-updated",
+                Some(run_id),
+                Some(turn_id),
+            )?;
             return Err(err);
         };
         let msg = choice.message;
@@ -356,7 +438,7 @@ pub(crate) async fn run_model_tool_loop(
                 Some(format!("corr-{}", model_item_id)),
                 "item.completed",
                 Some(turn_id.to_string()),
-                Some(model_item_id),
+                Some(model_item_id.clone()),
                 Some("model_request".into()),
             );
             push_trace_event_for_run(
@@ -369,7 +451,37 @@ pub(crate) async fn run_model_tool_loop(
                 "model",
                 None,
             );
-            state.save_locked(&data)?;
+            if !msg.tool_calls.is_empty() {
+                upsert_turn_item(
+                    &mut data,
+                    session_id,
+                    turn_id,
+                    reasoning_turn_item(
+                        turn_id,
+                        Some(run_id),
+                        &format!("{model_item_id}-reasoning"),
+                        Some(model_summary.clone()),
+                        Some(model_summary.clone()),
+                        Some(format!("corr-{}", model_item_id)),
+                        Some(
+                            json!({
+                                "source": "model_response",
+                                "toolCalls": msg.tool_calls.iter().map(|tc| tc.function.name.clone()).collect::<Vec<_>>(),
+                            })
+                            .to_string(),
+                        ),
+                    ),
+                );
+            }
+            save_and_emit_session(
+                state,
+                app,
+                &data,
+                session_id,
+                "run-runtime-updated",
+                Some(run_id),
+                Some(turn_id),
+            )?;
         }
 
         if msg.tool_calls.is_empty() {
@@ -398,7 +510,15 @@ pub(crate) async fn run_model_tool_loop(
                 "session",
                 None,
             );
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                state,
+                app,
+                &data,
+                session_id,
+                "run-runtime-updated",
+                Some(run_id),
+                Some(turn_id),
+            )?;
         }
 
         for tc in msg.tool_calls {
@@ -431,7 +551,15 @@ pub(crate) async fn run_model_tool_loop(
                     "session",
                     Some(corr),
                 );
-                state.save_locked(&data)?;
+                save_and_emit_session(
+                    state,
+                    app,
+                    &data,
+                    session_id,
+                    "run-runtime-updated",
+                    Some(run_id),
+                    Some(turn_id),
+                )?;
                 final_content = Some("检测到重复工具调用，已提前停止本轮以避免死循环。请缩小范围或指定具体文件后继续。".into());
                 break;
             }
@@ -560,7 +688,15 @@ pub(crate) async fn run_model_tool_loop(
                     final_content = Some("我检测到模型试图直接修改代码而未先阅读上下文。为保证像 Codex 一样稳健，我已阻止本轮修改。请重试，我会先执行 read/search 再 edit。".into());
                     break;
                 }
-                state.save_locked(&data)?;
+                save_and_emit_session(
+                    state,
+                    app,
+                    &data,
+                    session_id,
+                    "run-runtime-updated",
+                    Some(run_id),
+                    Some(turn_id),
+                )?;
             }
             if final_content.is_some() {
                 break;
@@ -652,7 +788,15 @@ pub(crate) async fn run_model_tool_loop(
                         Some(tool_msg_text),
                     ),
                 );
-                state.save_locked(&data)?;
+                save_and_emit_session(
+                    state,
+                    app,
+                    &data,
+                    session_id,
+                    "run-runtime-updated",
+                    Some(run_id),
+                    Some(turn_id),
+                )?;
             }
             if consecutive_failed_tools >= 4 || round_failed_tools >= 3 {
                 let detail = format!(
@@ -670,7 +814,15 @@ pub(crate) async fn run_model_tool_loop(
                     "session",
                     Some(format!("corr-tool-failure-{}", tc.id)),
                 );
-                state.save_locked(&data)?;
+                save_and_emit_session(
+                    state,
+                    app,
+                    &data,
+                    session_id,
+                    "run-runtime-updated",
+                    Some(run_id),
+                    Some(turn_id),
+                )?;
                 final_content = Some(tool_failure_guard_message(&tool_events));
                 break;
             }

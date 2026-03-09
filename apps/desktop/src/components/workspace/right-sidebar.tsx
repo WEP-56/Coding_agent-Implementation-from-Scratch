@@ -1,8 +1,18 @@
 import { useEffect, useState } from "react";
 
-import { getSessionContextDebug, listRepoTree, readRepoFile, writeRepoFile } from "../../api/bridge";
+import {
+  getSessionContextDebug,
+  listRepoTree,
+  listenSessionStateChanged,
+  readRepoFile,
+  writeRepoFile,
+} from "../../api/bridge";
 import { cn } from "../../lib/utils";
-import type { RepoFileContent, RepoTreeEntry, SessionContextDebugSnapshot } from "../../types/models";
+import type {
+  RepoFileContent,
+  RepoTreeEntry,
+  SessionContextDebugSnapshot,
+} from "../../types/models";
 import { ContextPanel } from "./context-panel";
 import { MemoryPanel } from "./memory-panel";
 
@@ -20,9 +30,31 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
   const [filePreview, setFilePreview] = useState<RepoFileContent | null>(null);
   const [loadingFile, setLoadingFile] = useState(false);
   const [draftContent, setDraftContent] = useState("");
-  const [contextSnapshot, setContextSnapshot] = useState<SessionContextDebugSnapshot | null>(null);
+  const [contextSnapshot, setContextSnapshot] =
+    useState<SessionContextDebugSnapshot | null>(null);
   const [contextLoading, setContextLoading] = useState(false);
   const [contextError, setContextError] = useState<string | null>(null);
+  const [refreshNonce, setRefreshNonce] = useState(0);
+
+  useEffect(() => {
+    let active = true;
+    let dispose: (() => void) | null = null;
+    void listenSessionStateChanged((event) => {
+      if (!active) return;
+      if (!sessionId || event.sessionId !== sessionId) return;
+      setRefreshNonce((value) => value + 1);
+    }).then((unlisten) => {
+      if (!active) {
+        unlisten();
+        return;
+      }
+      dispose = unlisten;
+    });
+    return () => {
+      active = false;
+      if (dispose) dispose();
+    };
+  }, [sessionId]);
 
   useEffect(() => {
     if (!sessionId || activeTab !== "files") return;
@@ -37,7 +69,7 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
     return () => {
       canceled = true;
     };
-  }, [sessionId, activeTab]);
+  }, [sessionId, activeTab, refreshNonce]);
 
   useEffect(() => {
     if (!sessionId || activeTab !== "context") {
@@ -69,7 +101,7 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
     return () => {
       canceled = true;
     };
-  }, [sessionId, activeTab, traceVersion]);
+  }, [sessionId, activeTab, traceVersion, refreshNonce]);
 
   const openFile = (path: string) => {
     if (!sessionId) return;
@@ -91,7 +123,11 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
     if (!sessionId || !selectedPath) return;
     writeRepoFile(sessionId, selectedPath, draftContent)
       .then(() => {
-        setFilePreview({ path: selectedPath, content: draftContent, truncated: false });
+        setFilePreview({
+          path: selectedPath,
+          content: draftContent,
+          truncated: false,
+        });
       })
       .catch(() => undefined);
   };
@@ -138,7 +174,9 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
         {activeTab === "files" ? (
           <div className="grid h-full grid-cols-[220px_1fr] overflow-hidden">
             <div className="overflow-y-auto border-r border-border/50 p-3">
-              <div className="mb-2 text-xs font-semibold text-muted-foreground">文件浏览器</div>
+              <div className="mb-2 text-xs font-semibold text-muted-foreground">
+                文件浏览器
+              </div>
               {!sessionId ? (
                 <div className="rounded-lg border border-dashed border-border/50 bg-card/30 p-4 text-center text-xs text-muted-foreground">
                   请先选择会话
@@ -157,7 +195,11 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
                     className="w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent/50"
                   >
                     <div className="flex items-center gap-2">
-                      <span className="truncate text-foreground">{entry.isDir ? `📁 ${entry.displayName}` : entry.displayName}</span>
+                      <span className="truncate text-foreground">
+                        {entry.isDir
+                          ? `📁 ${entry.displayName}`
+                          : entry.displayName}
+                      </span>
                     </div>
                   </button>
                 ))
@@ -177,7 +219,10 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
                 <div className="flex h-full flex-col gap-2">
                   <div className="flex items-center justify-between text-xs text-muted-foreground">
                     <span className="truncate">{filePreview?.path}</span>
-                    <button className="rounded border border-border/50 px-2 py-1 hover:bg-accent" onClick={saveFile}>
+                    <button
+                      className="rounded border border-border/50 px-2 py-1 hover:bg-accent"
+                      onClick={saveFile}
+                    >
                       保存
                     </button>
                   </div>
@@ -191,7 +236,10 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
             </div>
           </div>
         ) : activeTab === "memory" ? (
-          <MemoryPanel sessionId={sessionId} />
+          <MemoryPanel
+            sessionId={sessionId}
+            refreshToken={`${refreshNonce}:${traceVersion ?? "none"}`}
+          />
         ) : activeTab === "context" ? (
           <ContextPanel
             sessionId={sessionId}

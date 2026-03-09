@@ -23,6 +23,7 @@ use crate::commands::turn_manager::{
     phase_turn_item, upsert_turn_item,
 };
 use crate::error_taxonomy::{classify_error, ErrorContext};
+use crate::runtime_events::{emit_session_state_changed, save_and_emit_session};
 use crate::state::{
     AppSettings, AppState, ApprovalMeta, ApprovalRequest, ApprovalStatus, ArtifactItem, DiffFile,
     LogItem, MemoryBlock, PluginItem, RepoFileContent, RepoItem, RepoTreeEntry, RiskLevel,
@@ -30,7 +31,7 @@ use crate::state::{
 };
 use serde_json::json;
 use std::fs;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 fn turn_id_for_run(
     data: &crate::state::AppData,
@@ -138,6 +139,7 @@ pub fn create_session(
     repo_id: String,
     title: String,
     mode: String,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<SessionItem, String> {
     let mut data = state.data.lock().map_err(|e| e.to_string())?;
@@ -159,12 +161,16 @@ pub fn create_session(
         updated_at: ts,
     };
     data.sessions.insert(0, item.clone());
-    state.save_locked(&data)?;
+    save_and_emit_session(&state, &app, &data, &item.id, "session-created", None, None)?;
     Ok(item)
 }
 
 #[tauri::command]
-pub fn delete_session(session_id: String, state: State<'_, AppState>) -> Result<(), String> {
+pub fn delete_session(
+    session_id: String,
+    app: AppHandle,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
     let mut data = state.data.lock().map_err(|e| e.to_string())?;
     data.sessions.retain(|s| s.id != session_id);
     data.session_events.remove(&session_id);
@@ -175,13 +181,22 @@ pub fn delete_session(session_id: String, state: State<'_, AppState>) -> Result<
     data.tools.remove(&session_id);
     data.logs.remove(&session_id);
     data.artifacts.remove(&session_id);
-    state.save_locked(&data)
+    save_and_emit_session(
+        &state,
+        &app,
+        &data,
+        &session_id,
+        "session-deleted",
+        None,
+        None,
+    )
 }
 
 #[tauri::command]
 pub fn update_session_mode(
     session_id: String,
     mode: String,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let mut data = state.data.lock().map_err(|e| e.to_string())?;
@@ -192,7 +207,15 @@ pub fn update_session_mode(
             s.updated_at = ts.clone();
         }
     }
-    state.save_locked(&data)
+    save_and_emit_session(
+        &state,
+        &app,
+        &data,
+        &session_id,
+        "session-mode-updated",
+        None,
+        None,
+    )
 }
 
 #[tauri::command]
@@ -404,6 +427,7 @@ pub fn set_memory_block(
     description: Option<String>,
     read_only: Option<bool>,
     limit: Option<usize>,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<MemoryBlock, String> {
     let scope = normalize_memory_scope(&scope).ok_or_else(|| "invalid scope".to_string())?;
@@ -460,7 +484,15 @@ pub fn set_memory_block(
     } else {
         existing.push(block.clone());
     }
-    state.save_locked(&data)?;
+    save_and_emit_session(
+        &state,
+        &app,
+        &data,
+        &session_id,
+        "memory-block-updated",
+        None,
+        None,
+    )?;
 
     Ok(block)
 }
@@ -470,6 +502,7 @@ pub fn write_repo_file(
     session_id: String,
     path: String,
     content: String,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     if path_is_sensitive(&path) {
@@ -483,7 +516,9 @@ pub fn write_repo_file(
     drop(data);
 
     let file = safe_join_repo_path(&repo_path, &path)?;
-    fs::write(&file, content).map_err(|e| format!("write file failed: {}", e))
+    fs::write(&file, content).map_err(|e| format!("write file failed: {}", e))?;
+    emit_session_state_changed(&app, &session_id, "repo-file-written", None, None)?;
+    Ok(())
 }
 
 #[tauri::command]
@@ -492,6 +527,7 @@ pub fn write_repo_file_atomic(
     path: String,
     content: String,
     if_match_sha256: Option<String>,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<String, String> {
     if path_is_sensitive(&path) {
@@ -515,7 +551,9 @@ pub fn write_repo_file_atomic(
     let tmp = file.with_extension("tmp.codinggirl");
     fs::write(&tmp, &content).map_err(|e| format!("write temp failed: {}", e))?;
     fs::rename(&tmp, &file).map_err(|e| format!("rename temp failed: {}", e))?;
-    Ok(sha256_hex(&content))
+    let sha = sha256_hex(&content);
+    emit_session_state_changed(&app, &session_id, "repo-file-written", None, None)?;
+    Ok(sha)
 }
 
 #[tauri::command]
@@ -564,6 +602,7 @@ pub fn approve_request(
     approval_id: String,
     note: Option<String>,
     allow_session: Option<bool>,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ApprovalRequest, String> {
     let repo_path = {
@@ -727,7 +766,15 @@ pub fn approve_request(
                 "approval",
                 req.correlation_id.clone(),
             );
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                &state,
+                &app,
+                &data,
+                &session_id,
+                "approval-updated",
+                updated.run_id.as_deref(),
+                turn_id_for_run(&data, &session_id, updated.run_id.as_deref()).as_deref(),
+            )?;
             Ok(updated)
         }
         Err(err) => {
@@ -794,7 +841,15 @@ pub fn approve_request(
                 "approval",
                 req.correlation_id.clone(),
             );
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                &state,
+                &app,
+                &data,
+                &session_id,
+                "approval-updated",
+                updated.run_id.as_deref(),
+                turn_id_for_run(&data, &session_id, updated.run_id.as_deref()).as_deref(),
+            )?;
             Ok(updated)
         }
     }
@@ -805,6 +860,7 @@ pub fn reject_request(
     session_id: String,
     approval_id: String,
     note: Option<String>,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<ApprovalRequest, String> {
     let mut data = state.data.lock().map_err(|e| e.to_string())?;
@@ -835,7 +891,15 @@ pub fn reject_request(
         "approval",
         None,
     );
-    state.save_locked(&data)?;
+    save_and_emit_session(
+        &state,
+        &app,
+        &data,
+        &session_id,
+        "approval-updated",
+        updated.run_id.as_deref(),
+        turn_id_for_run(&data, &session_id, updated.run_id.as_deref()).as_deref(),
+    )?;
     Ok(updated)
 }
 
@@ -843,6 +907,7 @@ pub fn reject_request(
 pub fn rollback_patch_artifact(
     session_id: String,
     rollback_meta_path: String,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
     let repo_path = {
@@ -889,7 +954,15 @@ pub fn rollback_patch_artifact(
                 ),
             ),
         );
-        state.save_locked(&data)?;
+        save_and_emit_session(
+            &state,
+            &app,
+            &data,
+            &session_id,
+            "rollback-started",
+            Some(&run.id),
+            Some(&run.turn_id),
+        )?;
         (run.id, run.turn_id)
     };
 
@@ -969,7 +1042,15 @@ pub fn rollback_patch_artifact(
                 "rollback",
                 None,
             );
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                &state,
+                &app,
+                &data,
+                &session_id,
+                "rollback-completed",
+                Some(&run_id),
+                Some(&turn_id),
+            )?;
             Ok(())
         }
         Err(err) => {
@@ -1037,7 +1118,15 @@ pub fn rollback_patch_artifact(
                 "rollback",
                 None,
             );
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                &state,
+                &app,
+                &data,
+                &session_id,
+                "rollback-failed",
+                Some(&run_id),
+                Some(&turn_id),
+            )?;
             Err(err)
         }
     }

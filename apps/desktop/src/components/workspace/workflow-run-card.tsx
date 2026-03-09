@@ -82,6 +82,8 @@ function withErrorTaxonomy(summary: string, item: SessionTurnItem): string {
     category,
     item.retryable ? "可重试" : null,
     item.errorCode ?? null,
+    item.retryHint ? `重试：${item.retryHint}` : null,
+    item.fallbackHint ? `回退：${item.fallbackHint}` : null,
   ].filter(Boolean);
   if (qualifiers.length === 0) return summary;
   return `[${qualifiers.join(" · ")}] ${summary}`;
@@ -230,6 +232,22 @@ function humanizeContextTitle(
         : "Session context compacted";
     default:
       return null;
+  }
+}
+
+function humanizeCompaction(detail?: string | null): string | null {
+  if (!detail) return "上下文压缩已触发。";
+  try {
+    const parsed = JSON.parse(detail) as {
+      droppedTurns?: number;
+      keptRecent?: number;
+      summaryEntriesAdded?: number;
+      applied?: boolean;
+      wouldApply?: boolean;
+    };
+    return `上下文压缩${parsed.applied ? "已应用" : parsed.wouldApply ? "已准备" : "已记录"}：丢弃 ${parsed.droppedTurns ?? 0} 条，保留最近 ${parsed.keptRecent ?? 0} 条，摘要新增 ${parsed.summaryEntriesAdded ?? 0} 条。`;
+  } catch {
+    return detail;
   }
 }
 
@@ -453,7 +471,7 @@ function statusBadge(
 
 function buildTurnItemDetail(item: SessionTurnItem): string {
   const errorHeader = item.errorCategory
-    ? `error_category: ${item.errorCategory}\nerror_code: ${item.errorCode ?? "unknown"}\nretryable: ${item.retryable ? "true" : "false"}\n\n`
+    ? `error_category: ${item.errorCategory}\nerror_code: ${item.errorCode ?? "unknown"}\nretryable: ${item.retryable ? "true" : "false"}\nretry_hint: ${item.retryHint ?? "-"}\nfallback_hint: ${item.fallbackHint ?? "-"}\n\n`
     : "";
   if (item.kind === "tool_call") {
     const args = item.detail ?? "";
@@ -480,12 +498,16 @@ function summarizeTurnItem(item: SessionTurnItem): string {
         item.detail ??
         item.title
       );
+    case "reasoning":
+      return item.summary ?? item.detail ?? "模型已给出本轮执行思路。";
     case "context":
       return (
         humanizeContextTitle(item.title, item.detail) ??
         item.summary ??
         item.title
       );
+    case "compaction":
+      return item.summary ?? humanizeCompaction(item.detail) ?? item.title;
     case "model_request":
       return (
         item.summary ??
@@ -524,8 +546,12 @@ function workflowTitleFromTurnItem(item: SessionTurnItem): string {
   switch (item.kind) {
     case "phase":
       return "执行阶段";
+    case "reasoning":
+      return "执行思路";
     case "context":
       return "上下文";
+    case "compaction":
+      return "上下文压缩";
     case "model_request":
       return "模型请求";
     case "command":
@@ -594,7 +620,9 @@ function buildWorkflowEntriesFromTurn(
   const hasCanonicalRuntime = turn.items.some(
     (item) =>
       item.kind === "phase" ||
+      item.kind === "reasoning" ||
       item.kind === "context" ||
+      item.kind === "compaction" ||
       item.kind === "model_request" ||
       item.kind === "validation" ||
       item.kind === "command" ||
@@ -731,6 +759,10 @@ export function WorkflowRunCard({
       : run.status === "failed"
         ? "执行失败"
         : "执行完成";
+  const routeLabel = turn?.route ?? "unknown";
+  const routeSource = turn?.routeSource ?? null;
+  const routeReason = turn?.routeReason ?? null;
+  const routeSignals = turn?.routeSignals ?? [];
 
   return (
     <div className="overflow-hidden rounded-[24px] border border-border/60 bg-gradient-to-b from-card via-card/95 to-card/75 shadow-[0_22px_60px_rgba(0,0,0,0.24)]">
@@ -743,6 +775,26 @@ export function WorkflowRunCard({
             <div className="mt-1 text-xs text-muted-foreground">
               {statusText} · {run.mode} · {formatTimestamp(run.createdAt)}
             </div>
+            <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
+              <span className="rounded-full bg-background/70 px-2.5 py-1 text-foreground/85">
+                route {routeLabel}
+              </span>
+              {routeSource ? (
+                <span className="rounded-full bg-background/70 px-2.5 py-1 text-foreground/85">
+                  source {routeSource}
+                </span>
+              ) : null}
+              {routeReason ? (
+                <span className="rounded-full bg-background/70 px-2.5 py-1 text-foreground/85">
+                  reason {routeReason}
+                </span>
+              ) : null}
+            </div>
+            {routeSignals.length > 0 ? (
+              <div className="mt-2 text-[11px] text-muted-foreground/80">
+                {routeSignals.join(" · ")}
+              </div>
+            ) : null}
             <div className="mt-2 flex flex-wrap gap-2 text-[11px]">
               <span className="rounded-full bg-background/70 px-2.5 py-1 text-foreground/85">
                 已运行 {completedRuns}

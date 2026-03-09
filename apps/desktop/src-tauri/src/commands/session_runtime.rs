@@ -8,16 +8,18 @@ use crate::commands::llm::{
 };
 use crate::commands::policy::push_trace_event_for_run;
 use crate::commands::turn_manager::{
-    complete_session_turn, create_session_turn, error_turn_item, phase_turn_item, upsert_turn_item,
+    complete_session_turn, create_session_turn, error_turn_item, phase_turn_item,
+    update_session_turn_route, upsert_turn_item,
 };
 use crate::error_taxonomy::{classify_error, ErrorContext};
+use crate::runtime_events::save_and_emit_session;
 use crate::state::{
     AppState, ApprovalStatus, ArtifactItem, RunSessionResult, RunStatus, SessionEvent, SessionRun,
     SessionTurn, SessionTurnItem, SessionTurnItemKind, TimelineStatus, TimelineStep, ToolCallItem,
 };
 use serde_json::json;
 use std::fs;
-use tauri::State;
+use tauri::{AppHandle, State};
 
 pub(crate) fn create_session_run(
     data: &mut crate::state::AppData,
@@ -180,6 +182,16 @@ pub fn get_session_events(
     state: State<'_, AppState>,
 ) -> Result<Vec<SessionEvent>, String> {
     let data = state.data.lock().map_err(|e| e.to_string())?;
+    if let Some(turns) = data
+        .session_turns
+        .get(&session_id)
+        .filter(|turns| !turns.is_empty())
+    {
+        let projected = crate::state::project_session_events_from_turns(&session_id, turns);
+        if !projected.is_empty() {
+            return Ok(projected);
+        }
+    }
     Ok(data
         .session_events
         .get(&session_id)
@@ -210,6 +222,7 @@ pub async fn run_session_message(
     session_id: String,
     mode: String,
     text: String,
+    app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<RunSessionResult, String> {
     let intent = {
@@ -222,21 +235,37 @@ pub async fn run_session_message(
         {
             let mut data = state.data.lock().map_err(|e| e.to_string())?;
             append_user_turn(&mut data, &session_id, &text);
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                &state,
+                &app,
+                &data,
+                &session_id,
+                "chat-user-appended",
+                None,
+                None,
+            )?;
         }
         let assistant_message = match run_plain_chat_reply(&session_id, &state).await {
             Ok(message) => message,
             Err(err) => {
                 let mut data = state.data.lock().map_err(|e| e.to_string())?;
                 append_failure_turn(&mut data, &session_id, &err);
-                state.save_locked(&data)?;
+                save_and_emit_session(&state, &app, &data, &session_id, "chat-failed", None, None)?;
                 return Err(err);
             }
         };
         let mut data = state.data.lock().map_err(|e| e.to_string())?;
         append_assistant_turn(&mut data, &session_id, &assistant_message);
         let timeline = data.timeline_for_session(&session_id);
-        state.save_locked(&data)?;
+        save_and_emit_session(
+            &state,
+            &app,
+            &data,
+            &session_id,
+            "chat-assistant-appended",
+            None,
+            None,
+        )?;
         return Ok(RunSessionResult {
             run_id: String::new(),
             turn_id: String::new(),
@@ -267,6 +296,15 @@ pub async fn run_session_message(
             intent.route.as_str(),
             &history_user_text,
         );
+        update_session_turn_route(
+            &mut data,
+            &session_id,
+            &run.turn_id,
+            Some(intent.route.as_str()),
+            Some(intent.source.as_str()),
+            intent.reasoning.as_deref(),
+            intent.signals.clone(),
+        );
         upsert_session_preflight_item(
             &mut data,
             &session_id,
@@ -295,6 +333,8 @@ pub async fn run_session_message(
                 error_category: None,
                 error_code: None,
                 retryable: None,
+                retry_hint: None,
+                fallback_hint: None,
                 created_at: turn.created_at.clone(),
                 updated_at: utc_now_iso(),
             },
@@ -319,7 +359,15 @@ pub async fn run_session_message(
             "session",
             None,
         );
-        state.save_locked(&data)?;
+        save_and_emit_session(
+            &state,
+            &app,
+            &data,
+            &session_id,
+            "run-started",
+            Some(&run.id),
+            Some(&run.turn_id),
+        )?;
         run
     };
 
@@ -330,6 +378,7 @@ pub async fn run_session_message(
         &effective_text,
         &run.id,
         &run.turn_id,
+        &app,
         &state,
     )
     .await
@@ -397,13 +446,23 @@ pub async fn run_session_message(
                     error_category: None,
                     error_code: None,
                     retryable: None,
+                    retry_hint: None,
+                    fallback_hint: None,
                     created_at: utc_now_iso(),
                     updated_at: utc_now_iso(),
                 },
             );
             complete_session_turn(&mut data, &session_id, &run.turn_id, RunStatus::Success);
             let timeline = data.timeline_for_session(&session_id);
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                &state,
+                &app,
+                &data,
+                &session_id,
+                "run-completed",
+                Some(&run.id),
+                Some(&run.turn_id),
+            )?;
 
             Ok(RunSessionResult {
                 run_id: run.id,
@@ -456,7 +515,15 @@ pub async fn run_session_message(
                 ),
             );
             complete_session_turn(&mut data, &session_id, &run.turn_id, RunStatus::Failed);
-            state.save_locked(&data)?;
+            save_and_emit_session(
+                &state,
+                &app,
+                &data,
+                &session_id,
+                "run-failed",
+                Some(&run.id),
+                Some(&run.turn_id),
+            )?;
             Err(err)
         }
     }
@@ -469,14 +536,35 @@ pub fn export_trace_bundle(
 ) -> Result<serde_json::Value, String> {
     let data = state.data.lock().map_err(|e| e.to_string())?;
     let repo_path = session_repo_path(&data, &session_id)?;
-    let session_events = data
+    let session_runs = data.runs_for_session(&session_id);
+    let session_turns = data.turns_for_session(&session_id);
+    let projected_events = if !session_turns.is_empty() {
+        crate::state::project_session_events_from_turns(&session_id, &session_turns)
+    } else {
+        vec![]
+    };
+    let legacy_session_events = data
         .session_events
         .get(&session_id)
         .cloned()
         .unwrap_or_default();
-    let session_runs = data.runs_for_session(&session_id);
-    let session_turns = data.turns_for_session(&session_id);
+    let session_events = if !projected_events.is_empty() {
+        projected_events.clone()
+    } else {
+        legacy_session_events.clone()
+    };
+    let canonical_items = session_turns
+        .iter()
+        .flat_map(|turn| turn.items.iter().cloned())
+        .collect::<Vec<_>>();
     let timeline = data.timeline_for_session(&session_id);
+    let timeline_source = if !session_turns.is_empty() {
+        "session_turn_items"
+    } else if !session_events.is_empty() {
+        "session_events"
+    } else {
+        "cached_timeline"
+    };
     let tool_calls: Vec<ToolCallItem> = data.tools.get(&session_id).cloned().unwrap_or_default();
     let approvals = data
         .pending_approvals
@@ -495,9 +583,17 @@ pub fn export_trace_bundle(
     let bundle = json!({
         "sessionId": session_id,
         "exportedAt": utc_now_iso(),
+        "projection": {
+            "timelineSource": timeline_source,
+            "canonicalTurnCount": session_turns.len(),
+            "canonicalItemCount": canonical_items.len(),
+            "legacyEventCount": legacy_session_events.len(),
+        },
         "sessionRuns": session_runs,
         "sessionTurns": session_turns,
+        "canonicalItems": canonical_items,
         "sessionEvents": session_events,
+        "legacySessionEvents": legacy_session_events,
         "timeline": timeline,
         "toolCalls": tool_calls,
         "approvals": approvals,

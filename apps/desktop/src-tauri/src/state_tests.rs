@@ -52,6 +52,9 @@ fn timeline_for_session_falls_back_to_events_when_turn_projection_is_empty() {
             run_id: Some("run-empty".into()),
             mode: "build".into(),
             route: Some("tool_execution".into()),
+            route_source: None,
+            route_reason: None,
+            route_signals: vec![],
             user_text: Some("hello".into()),
             status: RunStatus::Success,
             items: vec![SessionTurnItem {
@@ -70,6 +73,8 @@ fn timeline_for_session_falls_back_to_events_when_turn_projection_is_empty() {
                 error_category: None,
                 error_code: None,
                 retryable: None,
+                retry_hint: None,
+                fallback_hint: None,
                 created_at: "1".into(),
                 updated_at: "1".into(),
             }],

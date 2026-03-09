@@ -16,6 +16,7 @@ import {
   getLogs,
   getTimeline,
   getToolCalls,
+  listenSessionStateChanged,
   listRepos as listReposRemote,
   listSessionRuns,
   listSessions,
@@ -69,6 +70,7 @@ export function WorkspacePageV3() {
   const [sessionRuns, setSessionRuns] = useState<SessionRun[]>([]);
   const [sessionTurns, setSessionTurns] = useState<SessionTurn[]>([]);
   const currentSessionIdRef = useRef<string | null>(currentSessionId);
+  const refreshTimerRef = useRef<number | null>(null);
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
   const currentRepo =
@@ -102,9 +104,43 @@ export function WorkspacePageV3() {
       },
     );
 
+  const scheduleWorkflowRefresh = (sessionId: string, delay = 80) => {
+    if (refreshTimerRef.current !== null) {
+      window.clearTimeout(refreshTimerRef.current);
+    }
+    refreshTimerRef.current = window.setTimeout(() => {
+      refreshTimerRef.current = null;
+      void refreshWorkflowState(sessionId).catch(() => undefined);
+    }, delay);
+  };
+
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
+
+  useEffect(() => {
+    let active = true;
+    let dispose: (() => void) | null = null;
+    void listenSessionStateChanged((event) => {
+      if (!active) return;
+      if (event.sessionId !== currentSessionIdRef.current) return;
+      scheduleWorkflowRefresh(event.sessionId, 60);
+    }).then((unlisten) => {
+      if (!active) {
+        unlisten();
+        return;
+      }
+      dispose = unlisten;
+    });
+    return () => {
+      active = false;
+      if (dispose) dispose();
+      if (refreshTimerRef.current !== null) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     if (!currentSessionId) return;
@@ -300,28 +336,20 @@ export function WorkspacePageV3() {
 
     appendMessage(currentSessionId, "user", text);
     setLoadingTimeline(true);
-
-    window.setTimeout(() => {
-      void refreshWorkflowState(currentSessionId).catch(() => undefined);
-    }, 150);
-
-    const poll = window.setInterval(() => {
-      void refreshWorkflowState(currentSessionId).catch(() => undefined);
-    }, 650);
+    scheduleWorkflowRefresh(currentSessionId, 80);
 
     runSessionMessage(currentSessionId, mode, text)
       .then((result) => {
         appendMessage(currentSessionId, "assistant", result.assistantMessage);
         setTimeline(result.timeline);
-        void refreshWorkflowState(currentSessionId).catch(() => undefined);
+        scheduleWorkflowRefresh(currentSessionId, 20);
       })
       .catch((e) => {
         appendMessage(currentSessionId, "system", `执行失败：${String(e)}`);
         pushToast({ kind: "error", title: "执行失败", message: String(e) });
-        void refreshWorkflowState(currentSessionId).catch(() => undefined);
+        scheduleWorkflowRefresh(currentSessionId, 20);
       })
       .finally(() => {
-        window.clearInterval(poll);
         setLoadingTimeline(false);
       });
   };
@@ -331,12 +359,10 @@ export function WorkspacePageV3() {
     sessionId: string,
   ) => {
     if (phase === "started") {
-      window.setTimeout(() => {
-        void refreshWorkflowState(sessionId).catch(() => undefined);
-      }, 120);
+      scheduleWorkflowRefresh(sessionId, 120);
       return;
     }
-    void refreshWorkflowState(sessionId).catch(() => undefined);
+    scheduleWorkflowRefresh(sessionId, 20);
   };
 
   const handleRollback = () => {

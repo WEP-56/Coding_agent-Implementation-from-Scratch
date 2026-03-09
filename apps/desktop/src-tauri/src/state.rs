@@ -5,7 +5,9 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 
 use crate::error_taxonomy::ErrorCategory;
-pub use crate::timeline_projection::{project_timeline_from_events, project_timeline_from_turns};
+pub use crate::timeline_projection::{
+    project_session_events_from_turns, project_timeline_from_events, project_timeline_from_turns,
+};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MemoryBlock {
@@ -190,8 +192,10 @@ pub enum SessionTurnItemKind {
     UserMessage,
     AssistantMessage,
     Error,
+    Reasoning,
     Phase,
     Context,
+    Compaction,
     ModelRequest,
     Validation,
     Command,
@@ -235,6 +239,12 @@ pub struct SessionTurnItem {
     pub error_code: Option<String>,
     #[serde(default)]
     pub retryable: Option<bool>,
+    #[serde(rename = "retryHint")]
+    #[serde(default)]
+    pub retry_hint: Option<String>,
+    #[serde(rename = "fallbackHint")]
+    #[serde(default)]
+    pub fallback_hint: Option<String>,
     #[serde(rename = "createdAt")]
     pub created_at: String,
     #[serde(rename = "updatedAt")]
@@ -252,6 +262,15 @@ pub struct SessionTurn {
     pub mode: String,
     #[serde(default)]
     pub route: Option<String>,
+    #[serde(rename = "routeSource")]
+    #[serde(default)]
+    pub route_source: Option<String>,
+    #[serde(rename = "routeReason")]
+    #[serde(default)]
+    pub route_reason: Option<String>,
+    #[serde(rename = "routeSignals")]
+    #[serde(default)]
+    pub route_signals: Vec<String>,
     #[serde(rename = "userText")]
     #[serde(default)]
     pub user_text: Option<String>,
@@ -730,6 +749,9 @@ impl Default for AppData {
                 run_id: Some("run-demo-1".into()),
                 mode: "build".into(),
                 route: Some("tool_execution".into()),
+                route_source: Some("heuristic".into()),
+                route_reason: Some("workspace_bound_task".into()),
+                route_signals: vec!["task_request[chat+0,read+2,tool+4]".into()],
                 user_text: Some("修复登录验证错误".into()),
                 status: RunStatus::Success,
                 items: vec![
@@ -749,6 +771,8 @@ impl Default for AppData {
                         error_category: None,
                         error_code: None,
                         retryable: None,
+                        retry_hint: None,
+                        fallback_hint: None,
                         created_at: "2026-03-07T10:05:00+08:00".into(),
                         updated_at: "2026-03-07T10:05:00+08:00".into(),
                     },
@@ -768,6 +792,8 @@ impl Default for AppData {
                         error_category: None,
                         error_code: None,
                         retryable: None,
+                        retry_hint: None,
+                        fallback_hint: None,
                         created_at: "2026-03-07T10:05:01+08:00".into(),
                         updated_at: "2026-03-07T10:05:02+08:00".into(),
                     },
@@ -787,6 +813,8 @@ impl Default for AppData {
                         error_category: None,
                         error_code: None,
                         retryable: None,
+                        retry_hint: None,
+                        fallback_hint: None,
                         created_at: "2026-03-07T10:05:03+08:00".into(),
                         updated_at: "2026-03-07T10:05:03+08:00".into(),
                     },
@@ -806,6 +834,8 @@ impl Default for AppData {
                         error_category: None,
                         error_code: None,
                         retryable: None,
+                        retry_hint: None,
+                        fallback_hint: None,
                         created_at: "2026-03-07T10:05:08+08:00".into(),
                         updated_at: "2026-03-07T10:05:08+08:00".into(),
                     },
