@@ -128,6 +128,13 @@ fn try_spawn_vscode(path: &Path) -> Result<(), String> {
     ))
 }
 
+fn explorer_target(path: &Path) -> Result<String, String> {
+    let canonical = path
+        .canonicalize()
+        .map_err(|e| format!("path inaccessible: {}", e))?;
+    Ok(canonical.to_string_lossy().replace('/', "\\"))
+}
+
 #[tauri::command]
 pub async fn run_terminal_command(
     session_id: String,
@@ -576,8 +583,8 @@ pub fn open_path_in_explorer(path: String) -> Result<(), String> {
     if !target.exists() {
         return Err("path does not exist".into());
     }
-    Command::new("explorer")
-        .arg(target)
+    Command::new("explorer.exe")
+        .arg(explorer_target(&target)?)
         .spawn()
         .map_err(|e| format!("failed to open explorer: {}", e))?;
     Ok(())
@@ -595,11 +602,21 @@ pub fn open_path_in_vscode(path: String) -> Result<(), String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::fs;
 
     #[test]
     fn parse_cd_target_supports_basic_forms() {
         assert_eq!(parse_cd_target("cd foo").as_deref(), Some("foo"));
         assert_eq!(parse_cd_target("cd /d bar").as_deref(), Some("bar"));
         assert_eq!(parse_cd_target("pwd"), None);
+    }
+
+    #[test]
+    fn explorer_target_uses_windows_separators() {
+        let temp =
+            std::env::temp_dir().join(format!("coding-agent-explorer-{}", std::process::id()));
+        let _ = fs::create_dir_all(&temp);
+        let target = explorer_target(&temp).expect("target should resolve");
+        assert!(!target.contains('/'));
     }
 }

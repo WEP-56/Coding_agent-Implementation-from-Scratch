@@ -2,7 +2,7 @@
 
 更新日期：2026-03-09
 
-这份清单是 [`../codex-alignment.html`](../codex-alignment.html) 的执行版。原则是：
+这份清单保留为内部执行版；对外公开说明已经重构到 [`../architecture.html`](../architecture.html) 与 [`../papers.html`](../papers.html)。原则是：
 
 - 先补 runtime grammar，再补 feedback grammar，最后才做 polish。
 - 每完成一个条目，都要检查它是否真的改善了 `稳定性 / repo anchoring / 首帧反馈 / diff provenance / 恢复语义`。

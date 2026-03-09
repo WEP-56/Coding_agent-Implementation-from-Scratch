@@ -12,6 +12,7 @@ import type {
   TimelineStep,
   ToolCallItem,
 } from "../../types/models";
+import { DiffCodeBlock } from "../detail/diff-code-block";
 
 type WorkflowTab = "workflow" | "diff" | "tools";
 type WorkflowEntryType = "run" | "modify";
@@ -241,6 +242,12 @@ function humanizeValidationTitle(
       return detail ?? "读写顺序校验阻止了未先阅读上下文的修改";
     case "trace.guard.repeated-tool-call":
       return detail ?? "重复工具调用保护已触发，避免进入死循环";
+    case "trace.guard.tool-failure-storm":
+      return detail ?? "工具连续失败保护已触发，停止继续空转";
+    case "trace.guard.no-progress":
+      return detail ?? "连续多轮没有成功工具结果，已停止本轮";
+    case "trace.guard.provider-rate-limit":
+      return detail ?? "提供商限流保护已触发，停止继续请求模型";
     default:
       return detail ?? title;
   }
@@ -964,13 +971,13 @@ export function WorkflowRunCard({
                         </button>
                         {open ? (
                           <div className="border-t border-border/50 px-3 py-3">
-                            <pre className="rounded-xl bg-[#09111d] text-[11px] leading-5 text-slate-200">
-                              <code>
-                                {file.diff ||
-                                  file.unifiedSnippet ||
-                                  file.newSnippet}
-                              </code>
-                            </pre>
+                            <DiffCodeBlock
+                              text={
+                                file.diff ||
+                                file.unifiedSnippet ||
+                                file.newSnippet
+                              }
+                            />
                           </div>
                         ) : null}
                       </div>

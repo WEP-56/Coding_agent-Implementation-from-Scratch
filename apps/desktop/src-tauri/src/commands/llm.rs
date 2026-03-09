@@ -29,6 +29,70 @@ fn use_openai_provider(settings: &AppSettings) -> Result<bool, String> {
     Ok(false)
 }
 
+fn clip_text(input: &str, max_chars: usize) -> String {
+    let clipped = input.chars().take(max_chars).collect::<String>();
+    if input.chars().count() > max_chars {
+        format!("{}...", clipped)
+    } else {
+        clipped
+    }
+}
+
+fn summarize_model_message(msg: &crate::commands::llm_support::ChatCompletionMessage) -> String {
+    let content = msg.content.as_deref().unwrap_or("").trim();
+    let tool_summaries = msg
+        .tool_calls
+        .iter()
+        .take(3)
+        .map(|tc| {
+            let args = serde_json::from_str(&tc.function.arguments).unwrap_or_default();
+            format!("- {}", describe_tool_request(&tc.function.name, &args))
+        })
+        .collect::<Vec<_>>();
+
+    if !content.is_empty() && tool_summaries.is_empty() {
+        return clip_text(content, 240);
+    }
+    if !content.is_empty() && !tool_summaries.is_empty() {
+        return format!(
+            "{}\n\n接下来准备：\n{}",
+            clip_text(content, 200),
+            tool_summaries.join("\n")
+        );
+    }
+    if !tool_summaries.is_empty() {
+        return format!("接下来准备：\n{}", tool_summaries.join("\n"));
+    }
+    "模型已返回响应。".into()
+}
+
+fn tool_failure_guard_message(tool_events: &[(String, String, String, String, bool)]) -> String {
+    let failed = tool_events
+        .iter()
+        .rev()
+        .filter(|item| !item.4)
+        .take(3)
+        .map(|(_, name, _, result, _)| format!("- {}: {}", name, clip_text(result, 180)))
+        .collect::<Vec<_>>()
+        .join("\n");
+    format!(
+        "当前模型在工具调用上连续失败，我已提前停止本轮，避免继续空转或触发提供商限流。\n\n最近失败的调用：\n{}\n\n建议切换更强的模型，或把任务范围缩小到具体文件/目录后再继续。",
+        if failed.is_empty() {
+            "- 暂无可展示的失败工具结果".to_string()
+        } else {
+            failed
+        }
+    )
+}
+
+fn looks_like_rate_limit(error: &str) -> bool {
+    let lower = error.to_ascii_lowercase();
+    lower.contains(" 429 ")
+        || lower.contains("429 too many requests")
+        || lower.contains("rate limit")
+        || lower.contains("too many requests")
+}
+
 pub(crate) async fn run_model_tool_loop(
     session_id: &str,
     mode: &str,
@@ -108,6 +172,8 @@ pub(crate) async fn run_model_tool_loop(
     let mut final_content: Option<String> = None;
     let mut last_tool_sig: Option<String> = None;
     let mut consecutive_same_sig = 0usize;
+    let mut consecutive_failed_tools = 0usize;
+    let mut rounds_without_success = 0usize;
     let mut has_read_tool = false;
     let mut has_mutation_tool = false;
     let mut model_request_index = 0usize;
@@ -163,7 +229,7 @@ pub(crate) async fn run_model_tool_loop(
             state.save_locked(&data)?;
         }
 
-        let body = call_openai_compatible(
+        let body = match call_openai_compatible(
             &settings.model.base_url,
             &settings.model.api_key,
             &settings.model.model,
@@ -174,8 +240,109 @@ pub(crate) async fn run_model_tool_loop(
             messages.clone(),
             Some(tool_specs.clone()),
         )
-        .await?;
+        .await
+        {
+            Ok(body) => body,
+            Err(err) => {
+                if !tool_events.is_empty() && looks_like_rate_limit(&err) {
+                    let mut data = state.data.lock().map_err(|e| e.to_string())?;
+                    push_trace_event_for_run(
+                        &mut data,
+                        session_id,
+                        Some(run_id),
+                        "trace.guard.provider-rate-limit".into(),
+                        TimelineStatus::Failed,
+                        Some(err.clone()),
+                        "session",
+                        Some(format!("corr-{}", model_item_id)),
+                    );
+                    push_turn_event_for_run(
+                        &mut data,
+                        session_id,
+                        Some(run_id),
+                        "item.completed:model.request".into(),
+                        TimelineStatus::Failed,
+                        Some(err.clone()),
+                        "model",
+                        Some(format!("corr-{}", model_item_id)),
+                        "item.completed",
+                        Some(turn_id.to_string()),
+                        Some(model_item_id),
+                        Some("model_request".into()),
+                    );
+                    state.save_locked(&data)?;
+                    final_content = Some(tool_failure_guard_message(&tool_events));
+                    break;
+                }
+                return Err(err);
+            }
+        };
 
+        let parsed: ChatCompletionResponse = match serde_json::from_value(body) {
+            Ok(parsed) => parsed,
+            Err(error) => {
+                let err = format!("invalid chat completion response: {}", error);
+                let mut data = state.data.lock().map_err(|e| e.to_string())?;
+                push_turn_event_for_run(
+                    &mut data,
+                    session_id,
+                    Some(run_id),
+                    "item.completed:model.request".into(),
+                    TimelineStatus::Failed,
+                    Some(err.clone()),
+                    "model",
+                    Some(format!("corr-{}", model_item_id)),
+                    "item.completed",
+                    Some(turn_id.to_string()),
+                    Some(model_item_id),
+                    Some("model_request".into()),
+                );
+                push_trace_event_for_run(
+                    &mut data,
+                    session_id,
+                    Some(run_id),
+                    "trace.model.response".into(),
+                    TimelineStatus::Failed,
+                    Some(err.clone()),
+                    "model",
+                    None,
+                );
+                state.save_locked(&data)?;
+                return Err(err);
+            }
+        };
+        let Some(choice) = parsed.choices.into_iter().next() else {
+            let err = "model returned no choices".to_string();
+            let mut data = state.data.lock().map_err(|e| e.to_string())?;
+            push_turn_event_for_run(
+                &mut data,
+                session_id,
+                Some(run_id),
+                "item.completed:model.request".into(),
+                TimelineStatus::Failed,
+                Some(err.clone()),
+                "model",
+                Some(format!("corr-{}", model_item_id)),
+                "item.completed",
+                Some(turn_id.to_string()),
+                Some(model_item_id),
+                Some("model_request".into()),
+            );
+            push_trace_event_for_run(
+                &mut data,
+                session_id,
+                Some(run_id),
+                "trace.model.response".into(),
+                TimelineStatus::Failed,
+                Some(err.clone()),
+                "model",
+                None,
+            );
+            state.save_locked(&data)?;
+            return Err(err);
+        };
+        let msg = choice.message;
+        let model_summary = summarize_model_message(&msg);
         {
             let mut data = state.data.lock().map_err(|e| e.to_string())?;
             push_turn_event_for_run(
@@ -184,7 +351,7 @@ pub(crate) async fn run_model_tool_loop(
                 Some(run_id),
                 "item.completed:model.request".into(),
                 TimelineStatus::Success,
-                Some("模型已返回新的工作建议".into()),
+                Some(model_summary.clone()),
                 "model",
                 Some(format!("corr-{}", model_item_id)),
                 "item.completed",
@@ -198,19 +365,12 @@ pub(crate) async fn run_model_tool_loop(
                 Some(run_id),
                 "trace.model.response".into(),
                 TimelineStatus::Success,
-                Some("模型已返回新的工作建议".into()),
+                Some(model_summary.clone()),
                 "model",
                 None,
             );
             state.save_locked(&data)?;
         }
-
-        let parsed: ChatCompletionResponse = serde_json::from_value(body)
-            .map_err(|e| format!("invalid chat completion response: {}", e))?;
-        let Some(choice) = parsed.choices.into_iter().next() else {
-            return Err("model returned no choices".into());
-        };
-        let msg = choice.message;
 
         if msg.tool_calls.is_empty() {
             let content = msg.content.unwrap_or_default();
@@ -223,6 +383,8 @@ pub(crate) async fn run_model_tool_loop(
         }
 
         messages.push(assistant_tool_call_message(&msg.tool_calls));
+        let mut round_had_success = false;
+        let mut round_failed_tools = 0usize;
 
         {
             let mut data = state.data.lock().map_err(|e| e.to_string())?;
@@ -420,6 +582,13 @@ pub(crate) async fn run_model_tool_loop(
                 tool_msg_text.clone(),
                 ok,
             ));
+            if ok {
+                consecutive_failed_tools = 0;
+                round_had_success = true;
+            } else {
+                consecutive_failed_tools += 1;
+                round_failed_tools += 1;
+            }
             messages.push(tool_msg.clone());
             {
                 let mut data = state.data.lock().map_err(|e| e.to_string())?;
@@ -485,8 +654,49 @@ pub(crate) async fn run_model_tool_loop(
                 );
                 state.save_locked(&data)?;
             }
+            if consecutive_failed_tools >= 4 || round_failed_tools >= 3 {
+                let detail = format!(
+                    "tool failure guard stopped the loop after {} consecutive failures in this round",
+                    consecutive_failed_tools
+                );
+                let mut data = state.data.lock().map_err(|e| e.to_string())?;
+                push_trace_event_for_run(
+                    &mut data,
+                    session_id,
+                    Some(run_id),
+                    "trace.guard.tool-failure-storm".into(),
+                    TimelineStatus::Failed,
+                    Some(detail),
+                    "session",
+                    Some(format!("corr-tool-failure-{}", tc.id)),
+                );
+                state.save_locked(&data)?;
+                final_content = Some(tool_failure_guard_message(&tool_events));
+                break;
+            }
         }
         if final_content.is_some() {
+            break;
+        }
+        if round_had_success {
+            rounds_without_success = 0;
+        } else {
+            rounds_without_success += 1;
+        }
+        if rounds_without_success >= 2 && !tool_events.is_empty() {
+            let mut data = state.data.lock().map_err(|e| e.to_string())?;
+            push_trace_event_for_run(
+                &mut data,
+                session_id,
+                Some(run_id),
+                "trace.guard.no-progress".into(),
+                TimelineStatus::Failed,
+                Some("model completed multiple tool-planning rounds without any successful tool result".into()),
+                "session",
+                None,
+            );
+            state.save_locked(&data)?;
+            final_content = Some(tool_failure_guard_message(&tool_events));
             break;
         }
     }
