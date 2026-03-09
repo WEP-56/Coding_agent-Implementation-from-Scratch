@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>架构原理 | CodingGirl Docs</title>
+    <meta
+      name="description"
+      content="CodingGirl 架构原理文档，解释 Python Core、桌面端原型、工具调用、索引、审批与事件模型。"
+    >
+    <link rel="stylesheet" href="./assets/site.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-shell">
+        <a class="brand" href="./index.html">
+          <span class="brand-mark">CG</span>
+          <span class="brand-stack">
+            <span class="brand-title">CodingGirl Docs</span>
+            <span class="brand-subtitle">Architecture</span>
+          </span>
+        </a>
+        <nav class="main-nav" aria-label="主导航">
+          <a href="./index.html">首页</a>
+          <a href="./getting-started.html">快速上手</a>
+          <a href="./architecture.html" aria-current="page">架构原理</a>
+          <a href="./roadmap.html">现状与路线图</a>
+          <a href="./codex-alignment.html">对标改造</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero-shell">
+          <article class="hero-card">
+            <div class="eyebrow">Principles</div>
+            <h1>真正决定 coding agent 成败的，不只是模型，而是结构、权限和可恢复性</h1>
+            <p class="lead">
+              如果只看表面，CodingGirl 像是在“同时做一个 Python agent core 和一个桌面端 AI IDE”。
+              但从工程角度看，更准确的说法是：它正在摸索一个统一的 coding agent 运行时，只是目前还没把所有层收拢到同一条执行链上。
+            </p>
+          </article>
+          <div class="stack">
+            <article class="note-card">
+              <div class="metric-label">关键词</div>
+              <div class="pill-row">
+                <span class="pill accent">Diff First</span>
+                <span class="pill teal">Trace First</span>
+                <span class="pill">Repo Map</span>
+                <span class="pill">Approval Gate</span>
+              </div>
+            </article>
+            <article class="note-card">
+              <div class="metric-label">当前最大裂缝</div>
+              <p>Python core 和桌面端都在做编排，但还没有共享同一个权威状态机、事件协议和恢复语义。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Design Goals</div>
+              <h2>这个项目真正应该坚持的设计原则</h2>
+            </div>
+          </div>
+          <div class="grid three">
+            <article class="panel">
+              <h3>模型无关</h3>
+              <p>内部用统一 contracts 与 tool schemas，把模型 provider 适配放到边界层，而不是把业务逻辑绑死在某个 API 上。</p>
+            </article>
+            <article class="panel">
+              <h3>先读后写</h3>
+              <p>先通过 repo map、search、read_file 等只读工具定位上下文，再尝试 patch，避免“直接改错地方”的高成本失败。</p>
+            </article>
+            <article class="panel">
+              <h3>可追踪可恢复</h3>
+              <p>任何运行都应该能回答：调用了什么工具、做了什么改动、为什么失败、怎样回滚或重放。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Layered View</div>
+              <h2>当前代码层次</h2>
+            </div>
+          </div>
+          <article class="panel panel-dark">
+            <pre><code>Adapters / Surfaces
+├─ CLI (Python)
+├─ Telegram simulate (Python)
+└─ Desktop UI (React + Tauri)
+
+Core / Decision Logic
+├─ contracts
+├─ planner / coder / reviewer
+├─ state_machine
+└─ orchestrator (Python MVP)
+
+Runtime / Infra
+├─ workspace sandbox
+├─ tool registry + tool runner
+├─ sqlite store
+├─ manifest / symbols / repo_map
+└─ llm adapter
+
+Desktop Native Runtime
+├─ Rust commands
+├─ approval policy
+├─ patch persistence / rollback
+├─ memory blocks
+└─ openai-compatible tool loop</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Python Core</div>
+              <h2>Python 这条线已经沉淀了什么</h2>
+            </div>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <h3>1. Contracts 是基础语言</h3>
+              <p>
+                <code>codinggirl/core/contracts.py</code> 定义了 Task、Plan、PatchSet、ToolCall、ToolResult、Event，
+                这是整个系统“模型无关”的基石。只要这些对象是稳定、可序列化、可落盘的，后面再替换 LLM provider、
+                再替换界面层，都不会让运行时完全失控。
+              </p>
+            </article>
+            <article class="panel">
+              <h3>2. Workspace Sandbox 定义访问边界</h3>
+              <p>
+                <code>RepoWorkspace</code> 负责拒绝绝对路径、阻止 <code>..</code> 逃逸、限制读取大小，并统一文本写入方式。
+                这一步并不花哨，却是从“脚本玩具”迈向“工程工具”的前提。
+              </p>
+            </article>
+            <article class="panel">
+              <h3>3. Tool Runner + SQLite Trace</h3>
+              <p>
+                Python 工具调用会记录到 SQLite 的 <code>tool_call</code> 与 <code>event</code> 表里。哪怕今天它还没有完整 replay
+                模式，这种结构也已经为后续的恢复、调试和审计留出了位置。
+              </p>
+            </article>
+            <article class="panel">
+              <h3>4. Repo Map 不是向量库替代品，而是最小理解层</h3>
+              <p>
+                当前索引链路由 <code>manifest.json</code>、<code>symbols.sqlite</code> 和 <code>repo_map.txt</code> 组成。
+                它先覆盖 Python AST 级别的 class / function / import，再根据重要性和焦点词生成适合喂给模型的仓库摘要。
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Patch Strategy</div>
+              <h2>为什么要坚持 diff-first，而不是整文件重写</h2>
+            </div>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <h3>当前做法</h3>
+              <p>
+                Python 侧通过 <code>patch_apply_unified_diff</code> 支持 fail-on-conflict 的统一 diff 应用，
+                会先解析 patch，再按 hunk 顺序应用，并在冲突时拒绝写入。对于桌面端，则另外实现了更接近 Codex
+                风格的 patch 应用和 artifact 持久化。
+              </p>
+            </article>
+            <article class="panel">
+              <h3>这样做的意义</h3>
+              <ul class="list-plain">
+                <li>变更范围更小，更容易被审查</li>
+                <li>失败原因更明确，例如 context mismatch、delete mismatch</li>
+                <li>更容易做 rollback 与 artifact 保存</li>
+                <li>后续更容易和审批、trace、PR 生成衔接</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Desktop Runtime</div>
+              <h2>桌面端原型为什么不是“纯 UI”</h2>
+            </div>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <h3>前端层做了什么</h3>
+              <p>
+                React 前端不只是展示对话，它维护仓库、会话、时间线、Diff、Tool Calls、Logs、Artifacts、Memory Blocks
+                等状态，并通过桥接层把数据请求转给 Tauri 命令。
+              </p>
+            </article>
+            <article class="panel">
+              <h3>Rust 命令层做了什么</h3>
+              <p>
+                Tauri 的 Rust 命令层负责读取仓库树、读写文件、应用 patch、处理审批请求、导出 trace bundle、记录本地会话状态。
+                这意味着桌面端其实已经拥有一个“本地 agent shell”的雏形。
+              </p>
+            </article>
+          </div>
+          <article class="panel" style="margin-top: 1rem;">
+            <h3>桌面端的模型工具循环</h3>
+            <p>
+              <code>apps/desktop/src-tauri/src/commands/llm.rs</code> 实现了一套 OpenAI-compatible 的 tool loop：
+              它会构造 system prompt、附加 repo context 与 memory blocks、接收 tool calls、根据模式与策略进行审批，
+              再把工具结果送回模型。它甚至已经开始尝试“read-before-write guard”这种产品级防线。
+            </p>
+            <p class="accent-line">
+              问题不在于这套东西不存在，而在于它目前并没有和 Python core 共用同一份 contracts、同一套状态恢复逻辑和同一条事件流水线。
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Approval Model</div>
+              <h2>审批、权限与 trace 为什么是产品核心</h2>
+            </div>
+          </div>
+          <div class="grid three">
+            <article class="panel">
+              <h3>Plan / Build / Auto</h3>
+              <p>模式不是 UI 装饰，而是 mutating tools 的执行门槛。Plan 禁写，Build 默认要审批，Auto 才能自动应用。</p>
+            </article>
+            <article class="panel">
+              <h3>Ask / Allow / Deny</h3>
+              <p>策略决定工具可否执行，并可按仓库保存。桌面端还实现了 session 级 permission cache。</p>
+            </article>
+            <article class="panel">
+              <h3>Trace / Artifact / Rollback</h3>
+              <p>没有这些就无法建立用户信任。用户需要知道系统做了什么，也需要能在出错时回头。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Gap Analysis</div>
+              <h2>当前架构最需要正视的裂缝</h2>
+            </div>
+          </div>
+          <div class="timeline-list">
+            <div class="timeline-item">
+              <strong>裂缝 1：双运行时并存</strong>
+              Python core 和桌面端都在负责 orchestration，但它们没有共享同一个 session lifecycle。
+            </div>
+            <div class="timeline-item">
+              <strong>裂缝 2：事件模型还不是真正的单一事实源</strong>
+              Python 有 SQLite event log，桌面端有 timeline / trace 结构，但二者没有统一协议。
+            </div>
+            <div class="timeline-item">
+              <strong>裂缝 3：索引能力未跨语言统一</strong>
+              Python 侧现在主要覆盖 Python AST，桌面端也没有直接消费这套索引结果。
+            </div>
+            <div class="timeline-item">
+              <strong>裂缝 4：恢复语义还不完整</strong>
+              rollback、artifact 和 trace export 已有雏形，但 resume / fork / replay 仍未形成产品闭环。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Why Codex / OpenCode Matter</div>
+              <h2>从 Codex 和 OpenCode 应该学什么</h2>
+            </div>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <h3>该学 Codex 的地方</h3>
+              <ul class="list-plain">
+                <li>把上下文管理、事件顺序、工具执行和恢复机制做成一等公民</li>
+                <li>把 patch 应用、审查、trace 和批准流程织成完整生命周期</li>
+                <li>把“像资深工程师那样工作”落实到 guardrails 与执行协议，而不是文案</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>该学 OpenCode 的地方</h3>
+              <ul class="list-plain">
+                <li>清晰的权限模型</li>
+                <li>多表面入口但共享会话语义</li>
+                <li>规则、session、undo/redo、工程化可逆能力</li>
+              </ul>
+            </article>
+          </div>
+          <article class="callout" style="margin-top: 1rem;">
+            <h3>不该学的地方</h3>
+            <p>
+              不要急着复制所有外观和入口。对于 CodingGirl 现在这个阶段，真正的优先级是“单一执行事实源、稳定工具协议、可恢复会话”，
+              而不是先把 UI 做得更像某个成熟产品。
+            </p>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Target Shape</div>
+              <h2>理想终局应该是什么样</h2>
+            </div>
+          </div>
+          <article class="panel panel-dark">
+            <pre><code>One Engine
+  ├─ one contracts schema
+  ├─ one session event protocol
+  ├─ one approval + artifact lifecycle
+  ├─ one context manager
+  ├─ one repo index service
+  └─ many adapters
+       ├─ CLI
+       ├─ Desktop
+       ├─ Telegram
+       └─ future web / automation / plugin surfaces</code></pre>
+          </article>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-shell">
+        <span>理解结构之后，再看现状与路线图会更清楚。</span>
+        <a class="text-link" href="./roadmap.html">前往现状与路线图</a>
+      </div>
+    </footer>
+  </body>
+</html>

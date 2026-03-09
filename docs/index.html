@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>CodingGirl Docs</title>
+    <meta
+      name="description"
+      content="CodingGirl 项目文档首页，覆盖快速上手、架构原理、当前能力边界与后续产品化路线。"
+    >
+    <link rel="stylesheet" href="./assets/site.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-shell">
+        <a class="brand" href="./index.html">
+          <span class="brand-mark">CG</span>
+          <span class="brand-stack">
+            <span class="brand-title">CodingGirl Docs</span>
+            <span class="brand-subtitle">Coding Agent Notes</span>
+          </span>
+        </a>
+        <nav class="main-nav" aria-label="主导航">
+          <a href="./index.html" aria-current="page">首页</a>
+          <a href="./getting-started.html">快速上手</a>
+          <a href="./architecture.html">架构原理</a>
+          <a href="./roadmap.html">现状与路线图</a>
+          <a href="./codex-alignment.html">对标改造</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero-shell">
+          <article class="hero-card">
+            <div class="eyebrow">Project Snapshot</div>
+            <h1>把原型整理成可发布、可讨论、可持续演进的产品文档</h1>
+            <p class="lead">
+              CodingGirl 目前不是一个已经完成的 Codex / OpenCode 替代品，而是一个同时包含
+              Python agent core 与 React + Tauri 桌面原型的“在建系统”。这套文档的目标，是先把事实、边界、
+              设计原则和演进路径讲清楚，为后续工程化与产品化打地基。
+            </p>
+            <div class="badge-line">
+              <span class="pill accent">Python Core</span>
+              <span class="pill teal">React + Tauri Desktop</span>
+              <span class="pill">GitHub Pages Ready</span>
+            </div>
+            <div class="hero-actions">
+              <a class="button-link primary" href="./getting-started.html">先看快速上手</a>
+              <a class="button-link secondary" href="./architecture.html">理解系统原理</a>
+            </div>
+          </article>
+
+          <div class="stack">
+            <article class="metric-card">
+              <div class="metric-label">截至时间</div>
+              <div class="metric-value">2026-03-08</div>
+              <p>以下文档基于当前仓库中的真实代码结构与测试，而不是仅根据早期设想整理。</p>
+            </article>
+            <article class="note-card">
+              <div class="metric-label">当前判断</div>
+              <p>
+                这个项目已经具备一部分可演示能力，但还没有形成统一执行引擎。Python core 与桌面端现在更像两条并行实验线，
+                下一阶段的关键不是继续堆功能，而是先统一事实来源和运行时边界。
+              </p>
+            </article>
+            <article class="note-card">
+              <div class="metric-label">注意</div>
+              <p>
+                <code>tmp/</code> 中的 Codex / OpenCode / 其他上游源码仅用于参考，不属于本项目要直接修改的工作区。
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Docs Map</div>
+              <h2>从哪里开始读</h2>
+            </div>
+            <p class="muted">建议先按“上手 → 原理 → 路线图”的顺序阅读。</p>
+          </div>
+          <div class="grid two">
+            <article class="doc-card">
+              <h3>快速上手</h3>
+              <p>
+                面向第一次接触这个仓库的人，解释 Python Core、桌面端原型、模型配置以及 GitHub Pages
+                发布方式。重点是“能跑什么”和“现在不要误以为它已经能做什么”。
+              </p>
+              <p><a href="./getting-started.html">打开文档</a></p>
+            </article>
+            <article class="doc-card">
+              <h3>架构原理</h3>
+              <p>
+                系统分层、事件与 trace、Repo Map、Patch、审批策略、桌面端 tool loop、当前架构裂缝以及和
+                Codex / OpenCode 的关系。
+              </p>
+              <p><a href="./architecture.html">打开文档</a></p>
+            </article>
+            <article class="doc-card">
+              <h3>现状与路线图</h3>
+              <p>
+                用“截至 2026-03-08 的事实快照”来总结已完成能力、未完成项、历史文档状态，以及从原型走向产品的阶段计划。
+              </p>
+              <p><a href="./roadmap.html">打开文档</a></p>
+            </article>
+            <article class="doc-card">
+              <h3>Codex 对标改造</h3>
+              <p>
+                从 runtime、context、event、feedback、terminal、agent mode 六条线解释为什么 Codex / OpenCode 体验更好，并给出 P0-P3 改造清单。
+              </p>
+              <p><a href="./codex-alignment.html">打开文档</a></p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Reality Check</div>
+              <h2>这个仓库现在到底有什么</h2>
+            </div>
+          </div>
+          <div class="grid three">
+            <article class="panel">
+              <h3>Python Agent Core</h3>
+              <ul class="list-plain">
+                <li>统一的 contracts：Task、Plan、PatchSet、ToolCall、ToolResult、Event</li>
+                <li>Repo workspace sandbox，限制路径逃逸与直接越界读写</li>
+                <li>SQLite 持久化：run、step、tool_call、event</li>
+                <li>Manifest / symbol / repo_map 索引链路</li>
+                <li>统一 diff patch 工具与 CLI 命令</li>
+                <li>Telegram 本地模拟入口</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>Desktop Prototype</h3>
+              <ul class="list-plain">
+                <li>React + TypeScript 三栏工作台</li>
+                <li>Tauri Rust 命令桥接本地仓库读写与 patch 应用</li>
+                <li>Plan / Build / Auto 模式与审批队列</li>
+                <li>Artifacts、Rollback、Trace 导出、Memory Blocks</li>
+                <li>OpenAI-compatible tool loop 的桌面端实验实现</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>仍然缺失的关键闭环</h3>
+              <ul class="list-plain">
+                <li>Python core 与桌面端并没有共享同一个权威运行时</li>
+                <li>上下文压缩、恢复、fork、replay 仍未产品化</li>
+                <li>索引当前以 Python AST 为主，多语言能力仍很浅</li>
+                <li>验证、观测、安全策略还没有统一成一条工程流水线</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Architecture Snapshot</div>
+              <h2>当前系统关系图</h2>
+            </div>
+          </div>
+          <article class="panel panel-dark">
+            <pre><code>┌─────────────────────────────────────────────────────────────┐
+│                        CodingGirl Repo                      │
+├───────────────────────────────┬─────────────────────────────┤
+│ Python Core                   │ Desktop Prototype           │
+│                               │                             │
+│ codinggirl/                   │ apps/desktop/               │
+│  ├─ core/                     │  ├─ src/                    │
+│  ├─ runtime/                  │  ├─ src-tauri/              │
+│  ├─ adapters/cli              │  └─ bridge + local state    │
+│  └─ adapters/telegram         │                             │
+│                               │                             │
+│ Responsibilities              │ Responsibilities            │
+│  - contracts                  │  - workspace UI             │
+│  - repo sandbox               │  - approval panel           │
+│  - sqlite trace               │  - tool loop experiment     │
+│  - repo index                 │  - local repo commands      │
+│  - patch engine               │  - artifact/trace export    │
+├───────────────────────────────┴─────────────────────────────┤
+│ Shared target for next phase: one event model, one runtime, │
+│ one source of truth for session execution.                  │
+└─────────────────────────────────────────────────────────────┘</code></pre>
+          </article>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">GitHub Pages</div>
+              <h2>这套文档如何发布</h2>
+            </div>
+          </div>
+          <div class="grid two">
+            <article class="callout">
+              <h3>为什么现在就适合上 Pages</h3>
+              <p>
+                文档目录采用纯静态 HTML + CSS，发布时不需要额外的 Node、Python 或 Jekyll 构建步骤。
+                这对一个还在频繁调整架构的原型项目很重要，因为文档发布链越简单，越不容易在后来失真。
+              </p>
+            </article>
+            <article class="callout">
+              <h3>最小发布步骤</h3>
+              <ol class="list-plain">
+                <li>把仓库推到 GitHub。</li>
+                <li>在仓库设置中打开 GitHub Pages。</li>
+                <li>Source 选择当前分支的 <code>/docs</code> 目录。</li>
+                <li>Pages 生效后，以 <code>docs/index.html</code> 作为首页。</li>
+              </ol>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Documentation Policy</div>
+              <h2>从现在开始，哪些文档算“当前事实”</h2>
+            </div>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <h3>当前事实来源</h3>
+              <ul class="list-plain">
+                <li><code>docs/index.html</code> 到 <code>docs/roadmap.html</code></li>
+                <li>根目录新的 <code>README.md</code></li>
+                <li><code>docs/roadmap/</code> 内仍有价值的内部规格</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>历史草稿的定位</h3>
+              <p>
+                根目录保留的早期规划文档现在应视为“设计过程留痕”，而不是要继续直接暴露给最终用户的说明书。
+                它们对研发回溯仍有参考价值，但后续若与新文档冲突，应以这里的文档站点为准。
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-shell">
+        <span>Updated for the repository snapshot on 2026-03-08.</span>
+        <a class="text-link" href="../README.md">返回仓库 README</a>
+      </div>
+    </footer>
+  </body>
+</html>

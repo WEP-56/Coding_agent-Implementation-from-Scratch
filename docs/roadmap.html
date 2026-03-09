@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>现状与路线图 | CodingGirl Docs</title>
+    <meta
+      name="description"
+      content="CodingGirl 当前真实能力、关键缺口、文档整理原则与从原型走向产品的阶段路线图。"
+    >
+    <link rel="stylesheet" href="./assets/site.css">
+  </head>
+  <body>
+    <header class="site-header">
+      <div class="container header-shell">
+        <a class="brand" href="./index.html">
+          <span class="brand-mark">CG</span>
+          <span class="brand-stack">
+            <span class="brand-title">CodingGirl Docs</span>
+            <span class="brand-subtitle">Roadmap</span>
+          </span>
+        </a>
+        <nav class="main-nav" aria-label="主导航">
+          <a href="./index.html">首页</a>
+          <a href="./getting-started.html">快速上手</a>
+          <a href="./architecture.html">架构原理</a>
+          <a href="./roadmap.html" aria-current="page">现状与路线图</a>
+          <a href="./codex-alignment.html">对标改造</a>
+        </nav>
+      </div>
+    </header>
+
+    <main>
+      <section class="hero">
+        <div class="container hero-shell">
+          <article class="hero-card">
+            <div class="eyebrow">Status As Of 2026-03-08</div>
+            <h1>先承认这还是原型，再把它推进成真正可用的产品</h1>
+            <p class="lead">
+              这份路线图不是泛泛而谈的“愿景文案”，而是基于当前仓库代码、测试、桌面端能力和历史规划稿整理出的现实版路线。
+              目标不是继续增加幻觉式功能，而是先把执行权威、事件模型、恢复语义和产品边界补齐。
+            </p>
+          </article>
+          <div class="stack">
+            <article class="metric-card">
+              <div class="metric-label">已存在的测试文件</div>
+              <div class="metric-value">10</div>
+              <p>说明这个仓库已经不是空壳，但测试仍主要覆盖基础设施层，而不是完整产品流程。</p>
+            </article>
+            <article class="note-card">
+              <div class="metric-label">最大现实问题</div>
+              <p>“能跑”与“能交付”之间还差一整层产品级运行时设计，尤其是统一事件协议和可恢复会话。</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">What Is Real</div>
+              <h2>当前已经真实落地的能力</h2>
+            </div>
+          </div>
+          <div class="grid three">
+            <article class="panel">
+              <h3>基础设施</h3>
+              <ul class="list-plain">
+                <li>Workspace sandbox</li>
+                <li>SQLite trace / tool_call schema</li>
+                <li>Patch apply with conflict rejection</li>
+                <li>Manifest / symbols / repo_map</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>入口与适配器</h3>
+              <ul class="list-plain">
+                <li>CLI 命令集</li>
+                <li>Telegram 本地模拟</li>
+                <li>桌面端 React + Tauri 原型</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>产品雏形</h3>
+              <ul class="list-plain">
+                <li>Mode 切换</li>
+                <li>审批队列与 session permission</li>
+                <li>Artifacts、rollback、trace export</li>
+                <li>Memory blocks 与 chat summary</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">What Is Not Ready</div>
+              <h2>当前还不能把它当成熟产品的原因</h2>
+            </div>
+          </div>
+          <div class="timeline-list">
+            <div class="timeline-item">
+              <strong>1. 没有单一执行权威</strong>
+              Python core 与桌面端原型都能做调度，但它们不是同一个 engine。
+            </div>
+            <div class="timeline-item">
+              <strong>2. 当前 orchestrator 还很窄</strong>
+              Python orchestrator 只支持一种 replace goal 语法，不是完整 task planner。
+            </div>
+            <div class="timeline-item">
+              <strong>3. 上下文生命周期仍不完整</strong>
+              压缩、恢复、fork、replay、session checkpoints 都没有形成稳定产品能力。
+            </div>
+            <div class="timeline-item">
+              <strong>4. 多语言代码理解仍不足</strong>
+              索引以 Python AST 为主，还没有真正覆盖桌面端自身的 TypeScript / Rust 主工作流。
+            </div>
+            <div class="timeline-item">
+              <strong>5. 工程发布链尚未打通</strong>
+              缺少统一版本管理、CI、发布流程、安装说明与用户级故障恢复策略。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Documentation Cleanup</div>
+              <h2>这次文档整理后，文档层面的边界怎么定</h2>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>文档/目录</th>
+                  <th>状态</th>
+                  <th>后续处理建议</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td><code>docs/index.html</code> 等新页面</td>
+                  <td>当前主文档</td>
+                  <td>持续维护，作为 GitHub Pages 对外入口。</td>
+                </tr>
+                <tr>
+                  <td><code>docs/roadmap/</code></td>
+                  <td>内部规格</td>
+                  <td>保留，用于设计推进，但要避免直接被当成用户文档。</td>
+                </tr>
+                <tr>
+                  <td><code>project-CodingGirl.md</code></td>
+                  <td>历史设计稿</td>
+                  <td>保留参考价值，但不再作为当前事实基线。</td>
+                </tr>
+                <tr>
+                  <td><code>todo list.md</code> 与多个 <code>frontend-*.md</code></td>
+                  <td>历史规划/PRD 草稿</td>
+                  <td>后续可逐步归档到一个内部 planning 目录，不再直接暴露为主入口。</td>
+                </tr>
+                <tr>
+                  <td><code>tmp/</code></td>
+                  <td>只读参考区</td>
+                  <td>继续保持不动，避免把上游源码和本项目主线混在一起。</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Execution Plan</div>
+              <h2>从原型走向产品的四阶段路线</h2>
+            </div>
+          </div>
+          <div class="timeline-list">
+            <div class="timeline-item">
+              <strong>阶段 1：统一事实源</strong>
+              把 session、turn、tool、approval、artifact、rollback 统一到一套事件协议中，结束“Python 一套、Desktop 一套”的状态。
+            </div>
+            <div class="timeline-item">
+              <strong>阶段 2：统一执行引擎</strong>
+              选择一个权威 runtime 作为核心执行面，其他入口只做 adapter。理想方向是 Desktop、CLI、Telegram 共享同一套 session lifecycle。
+            </div>
+            <div class="timeline-item">
+              <strong>阶段 3：补齐恢复和验证闭环</strong>
+              做 context compaction、resume、fork、replay、artifact provenance、rollback integrity、自动验证与失败恢复。
+            </div>
+            <div class="timeline-item">
+              <strong>阶段 4：产品化打磨与发布</strong>
+              完成多语言索引、稳定模型配置、打包发布、用户文档、CI/CD、遥测和问题诊断链路。
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Near-Term Priorities</div>
+              <h2>下一阶段最应该先做的事</h2>
+            </div>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <h3>优先级最高</h3>
+              <ul class="list-plain">
+                <li>定义统一 <code>SessionEvent</code> / <code>Turn</code> 协议</li>
+                <li>决定 Python core 与 Desktop runtime 的主从关系</li>
+                <li>用同一条 trace / artifact / approval 生命周期贯穿所有入口</li>
+                <li>把 TypeScript / Rust 代码也纳入一致的索引和定位方案</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>可以稍后做</h3>
+              <ul class="list-plain">
+                <li>更复杂的多 agent 协作</li>
+                <li>更华丽的 UI 动效</li>
+                <li>更多聊天表面或社交入口</li>
+                <li>Live2D 等非核心依赖</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Codex Alignment</div>
+              <h2>下一阶段的主路线已经单独整理</h2>
+            </div>
+          </div>
+          <div class="grid two">
+            <article class="callout">
+              <h3>为什么单独拆页</h3>
+              <p>
+                当前最关键的问题已经不是泛泛的“还缺什么功能”，而是如何系统性补齐 agent runtime、context lifecycle、feedback grammar 和 terminal semantics。
+              </p>
+            </article>
+            <article class="callout">
+              <h3>从哪里继续推进</h3>
+              <p>
+                请从 <a href="./codex-alignment.html">Codex 对标改造页</a> 开始，并按
+                <a href="./roadmap/codex-alignment-todo.md">TODO 清单</a> 逐项实施。
+              </p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section>
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Definition Of Done</div>
+              <h2>什么时候才算“真正可用”</h2>
+            </div>
+          </div>
+          <div class="grid two">
+            <article class="panel">
+              <h3>工程维度</h3>
+              <ul class="list-plain">
+                <li>统一 session lifecycle</li>
+                <li>统一 trace / artifact / rollback 协议</li>
+                <li>多语言 repo understanding 基本可用</li>
+                <li>自动验证、失败恢复和 replay 可落地</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>产品维度</h3>
+              <ul class="list-plain">
+                <li>新用户能稳定完成导入仓库、创建会话、发起任务、审查 patch</li>
+                <li>失败时能明确看见原因和可恢复路径</li>
+                <li>审批与权限模型可解释、可记忆、可撤销</li>
+                <li>文档、部署、更新和问题诊断都面向真实用户而不是作者本人</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="site-footer">
+      <div class="container footer-shell">
+        <span>这份路线图会成为后续工程化推进的文档基线。</span>
+        <a class="text-link" href="./index.html">返回首页</a>
+      </div>
+    </footer>
+  </body>
+</html>
