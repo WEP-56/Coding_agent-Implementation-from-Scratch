@@ -22,9 +22,14 @@ import {
   listSessionTurns,
   openPathInExplorer,
   openPathInVscode,
+  rollbackPatchArtifact,
   runSessionMessage,
   updateSessionMode as updateSessionModeRemote,
 } from "../api/bridge";
+import {
+  findLatestRollbackArtifact,
+  rollbackMetaPathForArtifact,
+} from "../lib/mutation";
 import { useAppStore } from "../store/app-store";
 import { useSessionStore } from "../store/session-store";
 import { useUiStore } from "../store/ui-store";
@@ -54,7 +59,6 @@ export function WorkspacePageV3() {
     appendMessage,
     loadSessionMessagesFromBackend,
     retryStep,
-    rollbackCurrentBatch,
     setLoadingTimeline,
   } = useSessionStore();
   const pushToast = useUiStore((s) => s.pushToast);
@@ -336,8 +340,37 @@ export function WorkspacePageV3() {
   };
 
   const handleRollback = () => {
-    rollbackCurrentBatch();
-    pushToast({ kind: "warning", title: "已回滚变更" });
+    if (!currentSessionId) return;
+    const rollbackArtifact = findLatestRollbackArtifact(artifacts);
+    const rollbackMetaPath = rollbackArtifact
+      ? rollbackMetaPathForArtifact(rollbackArtifact)
+      : null;
+    if (!rollbackMetaPath) {
+      pushToast({
+        kind: "warning",
+        title: "没有可回滚的批次",
+        message: "当前会话还没有 rollback metadata artifact。",
+      });
+      return;
+    }
+    setLoadingTimeline(true);
+    rollbackPatchArtifact(currentSessionId, rollbackMetaPath)
+      .then(() => {
+        pushToast({
+          kind: "warning",
+          title: "已回滚变更",
+          message: rollbackMetaPath,
+        });
+        return refreshWorkflowState(currentSessionId);
+      })
+      .catch((error) => {
+        pushToast({
+          kind: "error",
+          title: "回滚失败",
+          message: String(error),
+        });
+      })
+      .finally(() => setLoadingTimeline(false));
   };
 
   const handleRetryStep = (stepId: string) => {

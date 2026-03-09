@@ -3,291 +3,286 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>现状与路线图 | CodingGirl Docs</title>
+    <title>使用教程 | Coding Agent Implementation from Scratch</title>
     <meta
       name="description"
-      content="CodingGirl 当前真实能力、关键缺口、文档整理原则与从原型走向产品的阶段路线图。"
+      content="使用教程页面：说明如何按正确顺序体验 Python core、桌面端、会话模式、审批与回滚能力。"
     >
     <link rel="stylesheet" href="./assets/site.css">
+    <script src="./assets/site.js" defer></script>
   </head>
   <body>
     <header class="site-header">
       <div class="container header-shell">
         <a class="brand" href="./index.html">
-          <span class="brand-mark">CG</span>
-          <span class="brand-stack">
-            <span class="brand-title">CodingGirl Docs</span>
-            <span class="brand-subtitle">Roadmap</span>
+          <span class="brand-mark">CA</span>
+          <span class="brand-copy">
+            <span class="brand-title">Coding Agent Implementation from Scratch</span>
+            <span class="brand-subtitle">Tutorial / 使用教程</span>
           </span>
         </a>
-        <nav class="main-nav" aria-label="主导航">
-          <a href="./index.html">首页</a>
-          <a href="./getting-started.html">快速上手</a>
-          <a href="./architecture.html">架构原理</a>
-          <a href="./roadmap.html" aria-current="page">现状与路线图</a>
-          <a href="./codex-alignment.html">对标改造</a>
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="./index.html">指引 / Guide</a>
+          <a href="./roadmap.html" aria-current="page">使用教程 / Tutorial</a>
+          <a href="./getting-started.html">快速开始 / Quick Start</a>
+          <a href="./architecture.html">从零开始 / From Scratch</a>
+          <a href="./papers.html">论文 / Papers</a>
         </nav>
+        <div class="header-tools">
+          <a
+            class="header-link"
+            href="https://github.com/WEP-56/Coding_agent-Implementation-from-Scratch"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub
+          </a>
+          <button class="theme-toggle" type="button" data-theme-toggle>
+            <span data-theme-label>切换到深色 / Switch to dark</span>
+          </button>
+        </div>
       </div>
     </header>
 
     <main>
       <section class="hero">
-        <div class="container hero-shell">
+        <div class="container hero-grid">
           <article class="hero-card">
-            <div class="eyebrow">Status As Of 2026-03-08</div>
-            <h1>先承认这还是原型，再把它推进成真正可用的产品</h1>
-            <p class="lead">
-              这份路线图不是泛泛而谈的“愿景文案”，而是基于当前仓库代码、测试、桌面端能力和历史规划稿整理出的现实版路线。
-              目标不是继续增加幻觉式功能，而是先把执行权威、事件模型、恢复语义和产品边界补齐。
-            </p>
+            <div class="eyebrow">Usage Tutorial</div>
+            <h1 class="headline">
+              学会怎么用，而不是只会打开目录
+              <span>Learn the working paths, not just the folder names.</span>
+            </h1>
+            <div class="dual-copy lead">
+              <p>这页关注“如何正确体验仓库中的现有能力”。你会看到 Python core 的验证路径、桌面端的交互路径，以及哪些行为更接近真正的 coding agent 产品。</p>
+              <p>This page focuses on how to use the current repository correctly: the Python validation path, the desktop interaction path, and which parts already resemble a real coding-agent product.</p>
+            </div>
           </article>
           <div class="stack">
-            <article class="metric-card">
-              <div class="metric-label">已存在的测试文件</div>
-              <div class="metric-value">10</div>
-              <p>说明这个仓库已经不是空壳，但测试仍主要覆盖基础设施层，而不是完整产品流程。</p>
+            <article class="stat-card">
+              <div class="metric-label">Best Entry / 最优入口</div>
+              <div class="mini-copy">
+                <p>第一次看仓库，先跑 Quick Start；第二次再看这一页。</p>
+                <p>Use Quick Start on your first pass, then return here on your second pass.</p>
+              </div>
             </article>
-            <article class="note-card">
-              <div class="metric-label">最大现实问题</div>
-              <p>“能跑”与“能交付”之间还差一整层产品级运行时设计，尤其是统一事件协议和可恢复会话。</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">What Is Real</div>
-              <h2>当前已经真实落地的能力</h2>
-            </div>
-          </div>
-          <div class="grid three">
-            <article class="panel">
-              <h3>基础设施</h3>
-              <ul class="list-plain">
-                <li>Workspace sandbox</li>
-                <li>SQLite trace / tool_call schema</li>
-                <li>Patch apply with conflict rejection</li>
-                <li>Manifest / symbols / repo_map</li>
-              </ul>
-            </article>
-            <article class="panel">
-              <h3>入口与适配器</h3>
-              <ul class="list-plain">
-                <li>CLI 命令集</li>
-                <li>Telegram 本地模拟</li>
-                <li>桌面端 React + Tauri 原型</li>
-              </ul>
-            </article>
-            <article class="panel">
-              <h3>产品雏形</h3>
-              <ul class="list-plain">
-                <li>Mode 切换</li>
-                <li>审批队列与 session permission</li>
-                <li>Artifacts、rollback、trace export</li>
-                <li>Memory blocks 与 chat summary</li>
-              </ul>
+            <article class="stat-card">
+              <div class="metric-label">Mindset / 阅读心态</div>
+              <div class="mini-copy">
+                <p>把它看成“教学中的双轨工程”：Python 负责 core，桌面端负责产品体验原型。</p>
+                <p>Treat it as a two-track teaching project: Python handles the core, while the desktop app explores product-level UX.</p>
+              </div>
             </article>
           </div>
         </div>
       </section>
 
-      <section>
+      <section class="section">
         <div class="container">
           <div class="section-head">
             <div>
-              <div class="section-kicker">What Is Not Ready</div>
-              <h2>当前还不能把它当成熟产品的原因</h2>
+              <div class="section-kicker">Recommended Path</div>
+              <h2>建议上手顺序<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">A practical path for learning the repo.</span></h2>
             </div>
           </div>
-          <div class="timeline-list">
-            <div class="timeline-item">
-              <strong>1. 没有单一执行权威</strong>
-              Python core 与桌面端原型都能做调度，但它们不是同一个 engine。
+          <ol class="flow-list">
+            <li class="flow-step">
+              <strong>1. 先确认 Python 测试可过 / Confirm the Python tests first.</strong>
+              <span>这一步验证底层工具链没有马上断掉。</span>
+              <span>This validates that the lower-level toolchain is not immediately broken.</span>
+            </li>
+            <li class="flow-step">
+              <strong>2. 生成索引 / Generate the index artifacts.</strong>
+              <span>这样你能看见 manifest、symbols.sqlite、repo_map 这些“仓库理解层”到底是什么。</span>
+              <span>This lets you inspect the manifest, symbols.sqlite, and repo_map artifacts that form the repository-understanding layer.</span>
+            </li>
+            <li class="flow-step">
+              <strong>3. 再开桌面端 / Start the desktop app next.</strong>
+              <span>桌面端更接近真实工作流：会话、模式、timeline、approval、artifact 都在这里。</span>
+              <span>The desktop app is closer to a real workflow: sessions, modes, timeline, approvals, and artifacts all live here.</span>
+            </li>
+            <li class="flow-step">
+              <strong>4. 最后再看深层原理 / Read the deep-dive after you have touched the system.</strong>
+              <span>先体验，再分析，理解会更稳定。</span>
+              <span>Touch the system first, analyze it second. The design will make more sense.</span>
+            </li>
+          </ol>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Python Workflow</div>
+              <h2>如何体验 Python core<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">How to experience the Python core in a meaningful way.</span></h2>
             </div>
-            <div class="timeline-item">
-              <strong>2. 当前 orchestrator 还很窄</strong>
-              Python orchestrator 只支持一种 replace goal 语法，不是完整 task planner。
-            </div>
-            <div class="timeline-item">
-              <strong>3. 上下文生命周期仍不完整</strong>
-              压缩、恢复、fork、replay、session checkpoints 都没有形成稳定产品能力。
-            </div>
-            <div class="timeline-item">
-              <strong>4. 多语言代码理解仍不足</strong>
-              索引以 Python AST 为主，还没有真正覆盖桌面端自身的 TypeScript / Rust 主工作流。
-            </div>
-            <div class="timeline-item">
-              <strong>5. 工程发布链尚未打通</strong>
-              缺少统一版本管理、CI、发布流程、安装说明与用户级故障恢复策略。
-            </div>
+          </div>
+          <div class="cards-grid two">
+            <article class="panel">
+              <h3>建议动作 / Recommended actions</h3>
+              <ol class="soft-list">
+                <li>跑 <code>pytest</code> 看基础能力是否稳定。</li>
+                <li>跑 <code>codinggirl init</code> 初始化 sqlite。</li>
+                <li>跑 <code>codinggirl index</code> 观察索引产物。</li>
+                <li>跑 <code>codinggirl llm-probe</code> 验证 provider 适配。</li>
+                <li>最后再试 <code>codinggirl orchestrate</code>。</li>
+              </ol>
+            </article>
+            <article class="panel">
+              <h3>别跳过的观察点 / Observations worth keeping</h3>
+              <ul class="check-list">
+                <li><code>RepoWorkspace</code> 如何限制路径逃逸。</li>
+                <li><code>SQLiteStore</code> 如何记录 <code>run</code>、<code>tool_call</code>、<code>event</code>。</li>
+                <li><code>patch_apply_unified_diff</code> 如何处理备份、冲突和删除限制。</li>
+                <li><code>review_patch</code> 和状态机为什么那么保守。</li>
+              </ul>
+            </article>
           </div>
         </div>
       </section>
 
-      <section>
+      <section class="section">
         <div class="container">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Documentation Cleanup</div>
-              <h2>这次文档整理后，文档层面的边界怎么定</h2>
+              <div class="section-kicker">Desktop Workflow</div>
+              <h2>如何体验桌面端<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">How to exercise the desktop path.</span></h2>
+            </div>
+          </div>
+          <div class="cards-grid four">
+            <article class="panel">
+              <h3>1. 加入仓库</h3>
+              <div class="mini-copy">
+                <p>在左侧选择或添加 repo，让 session 真正绑定到工作区。</p>
+                <p>Add or select a repository so the session is actually workspace-bound.</p>
+              </div>
+            </article>
+            <article class="panel">
+              <h3>2. 创建会话</h3>
+              <div class="mini-copy">
+                <p>新建 session，给一个具体任务标题。</p>
+                <p>Create a session with a concrete task title.</p>
+              </div>
+            </article>
+            <article class="panel">
+              <h3>3. 选模式并发消息</h3>
+              <div class="mini-copy">
+                <p>用 Plan / Build / Auto 切换你的风险与自动化程度。</p>
+                <p>Use Plan / Build / Auto to control risk and automation.</p>
+              </div>
+            </article>
+            <article class="panel">
+              <h3>4. 看右侧面板</h3>
+              <div class="mini-copy">
+                <p>重点盯 timeline、diff、tools、artifacts、trace 和 context debug。</p>
+                <p>Watch the timeline, diff, tools, artifacts, trace, and context debug panels.</p>
+              </div>
+            </article>
+          </div>
+          <article class="panel" style="margin-top: 1rem;">
+            <h3>为什么桌面端更像产品 / Why the desktop path feels more product-like</h3>
+            <div class="mini-copy">
+              <p>因为它已经有会话、turn、timeline、approval、rollback、terminal、context compaction、intent routing 等结构，而且这些结构会被真实界面消费。</p>
+              <p>Because it already has sessions, turns, timeline projection, approvals, rollback, terminal execution, context compaction, and intent routing, and those structures are exercised by a real interface.</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Modes</div>
+              <h2>模式不要混着理解<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Do not flatten the different permission models into one thing.</span></h2>
             </div>
           </div>
           <div class="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>文档/目录</th>
-                  <th>状态</th>
-                  <th>后续处理建议</th>
+                  <th>入口 / Surface</th>
+                  <th>模式 / Modes</th>
+                  <th>含义 / Meaning</th>
                 </tr>
               </thead>
               <tbody>
                 <tr>
-                  <td><code>docs/index.html</code> 等新页面</td>
-                  <td>当前主文档</td>
-                  <td>持续维护，作为 GitHub Pages 对外入口。</td>
+                  <td>Python / Telegram</td>
+                  <td><code>readonly</code>, <code>write</code>, <code>exec</code></td>
+                  <td>偏后端权限模型，直接决定能否写文件或执行命令。</td>
                 </tr>
                 <tr>
-                  <td><code>docs/roadmap/</code></td>
-                  <td>内部规格</td>
-                  <td>保留，用于设计推进，但要避免直接被当成用户文档。</td>
-                </tr>
-                <tr>
-                  <td><code>project-CodingGirl.md</code></td>
-                  <td>历史设计稿</td>
-                  <td>保留参考价值，但不再作为当前事实基线。</td>
-                </tr>
-                <tr>
-                  <td><code>todo list.md</code> 与多个 <code>frontend-*.md</code></td>
-                  <td>历史规划/PRD 草稿</td>
-                  <td>后续可逐步归档到一个内部 planning 目录，不再直接暴露为主入口。</td>
-                </tr>
-                <tr>
-                  <td><code>tmp/</code></td>
-                  <td>只读参考区</td>
-                  <td>继续保持不动，避免把上游源码和本项目主线混在一起。</td>
+                  <td>Desktop</td>
+                  <td><code>plan</code>, <code>build</code>, <code>auto</code></td>
+                  <td>偏产品协作模型，控制 mutating tools 是否需要审批、是否自动应用。</td>
                 </tr>
               </tbody>
             </table>
           </div>
+          <p class="note-inline" style="margin-top: 1rem;">
+            两套模式现在仍然没有统一成一个 canonical permission grammar，这正是后续演进重点之一。 The two mode systems are still not unified into one canonical permission grammar.
+          </p>
         </div>
       </section>
 
-      <section>
+      <section class="section">
         <div class="container">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Execution Plan</div>
-              <h2>从原型走向产品的四阶段路线</h2>
+              <div class="section-kicker">Common Mistakes</div>
+              <h2>常见误区<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Mistakes readers make when they skim the repo.</span></h2>
             </div>
           </div>
-          <div class="timeline-list">
-            <div class="timeline-item">
-              <strong>阶段 1：统一事实源</strong>
-              把 session、turn、tool、approval、artifact、rollback 统一到一套事件协议中，结束“Python 一套、Desktop 一套”的状态。
-            </div>
-            <div class="timeline-item">
-              <strong>阶段 2：统一执行引擎</strong>
-              选择一个权威 runtime 作为核心执行面，其他入口只做 adapter。理想方向是 Desktop、CLI、Telegram 共享同一套 session lifecycle。
-            </div>
-            <div class="timeline-item">
-              <strong>阶段 3：补齐恢复和验证闭环</strong>
-              做 context compaction、resume、fork、replay、artifact provenance、rollback integrity、自动验证与失败恢复。
-            </div>
-            <div class="timeline-item">
-              <strong>阶段 4：产品化打磨与发布</strong>
-              完成多语言索引、稳定模型配置、打包发布、用户文档、CI/CD、遥测和问题诊断链路。
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Near-Term Priorities</div>
-              <h2>下一阶段最应该先做的事</h2>
-            </div>
-          </div>
-          <div class="grid two">
+          <div class="cards-grid three">
             <article class="panel">
-              <h3>优先级最高</h3>
-              <ul class="list-plain">
-                <li>定义统一 <code>SessionEvent</code> / <code>Turn</code> 协议</li>
-                <li>决定 Python core 与 Desktop runtime 的主从关系</li>
-                <li>用同一条 trace / artifact / approval 生命周期贯穿所有入口</li>
-                <li>把 TypeScript / Rust 代码也纳入一致的索引和定位方案</li>
-              </ul>
+              <h3>把 UI 当成全部</h3>
+              <div class="mini-copy">
+                <p>桌面端能打开不代表 core 已经统一完成。</p>
+                <p>A working UI does not mean the core runtime is already unified.</p>
+              </div>
             </article>
             <article class="panel">
-              <h3>可以稍后做</h3>
-              <ul class="list-plain">
-                <li>更复杂的多 agent 协作</li>
-                <li>更华丽的 UI 动效</li>
-                <li>更多聊天表面或社交入口</li>
-                <li>Live2D 等非核心依赖</li>
-              </ul>
+              <h3>把 orchestrate 当成成熟 agent</h3>
+              <div class="mini-copy">
+                <p>它是 MVP 链路验证器，不是完整任务规划器。</p>
+                <p>It is an MVP chain validator, not a full task planner.</p>
+              </div>
+            </article>
+            <article class="panel">
+              <h3>忽略 trace 与 artifact</h3>
+              <div class="mini-copy">
+                <p>真正有教学价值的是“系统怎么留下运行证据”。</p>
+                <p>The real learning value is in how the system leaves trace and artifact evidence behind.</p>
+              </div>
             </article>
           </div>
         </div>
       </section>
 
-      <section>
+      <section class="section">
         <div class="container">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Codex Alignment</div>
-              <h2>下一阶段的主路线已经单独整理</h2>
+              <div class="section-kicker">Next Stop</div>
+              <h2>看完这页后去哪<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Where to go after the tutorial.</span></h2>
             </div>
           </div>
-          <div class="grid two">
+          <div class="cards-grid two">
             <article class="callout">
-              <h3>为什么单独拆页</h3>
-              <p>
-                当前最关键的问题已经不是泛泛的“还缺什么功能”，而是如何系统性补齐 agent runtime、context lifecycle、feedback grammar 和 terminal semantics。
-              </p>
+              <h3>如果你已经跑通仓库</h3>
+              <div class="mini-copy">
+                <p>去看“从零开始”页，把对象模型、运行时和前端拆开理解。</p>
+                <p>Go to the “From Scratch” page to study the object model, runtime, and frontend layers in detail.</p>
+              </div>
             </article>
             <article class="callout">
-              <h3>从哪里继续推进</h3>
-              <p>
-                请从 <a href="./codex-alignment.html">Codex 对标改造页</a> 开始，并按
-                <a href="./roadmap/codex-alignment-todo.md">TODO 清单</a> 逐项实施。
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Definition Of Done</div>
-              <h2>什么时候才算“真正可用”</h2>
-            </div>
-          </div>
-          <div class="grid two">
-            <article class="panel">
-              <h3>工程维度</h3>
-              <ul class="list-plain">
-                <li>统一 session lifecycle</li>
-                <li>统一 trace / artifact / rollback 协议</li>
-                <li>多语言 repo understanding 基本可用</li>
-                <li>自动验证、失败恢复和 replay 可落地</li>
-              </ul>
-            </article>
-            <article class="panel">
-              <h3>产品维度</h3>
-              <ul class="list-plain">
-                <li>新用户能稳定完成导入仓库、创建会话、发起任务、审查 patch</li>
-                <li>失败时能明确看见原因和可恢复路径</li>
-                <li>审批与权限模型可解释、可记忆、可撤销</li>
-                <li>文档、部署、更新和问题诊断都面向真实用户而不是作者本人</li>
-              </ul>
+              <h3>如果你还没跑起来</h3>
+              <div class="mini-copy">
+                <p>回到“快速开始”，按命令链重新核对。</p>
+                <p>Go back to “Quick Start” and verify the command sequence.</p>
+              </div>
             </article>
           </div>
         </div>
@@ -296,8 +291,14 @@
 
     <footer class="site-footer">
       <div class="container footer-shell">
-        <span>这份路线图会成为后续工程化推进的文档基线。</span>
-        <a class="text-link" href="./index.html">返回首页</a>
+        <div>
+          <p class="footer-title">Usage Tutorial</p>
+          <p class="muted">真正的深度内容在下一页。 / The deeper system walkthrough is on the next page.</p>
+        </div>
+        <div class="footer-links">
+          <a class="link-strong" href="./architecture.html">从零开始 / From Scratch</a>
+          <a class="link-strong" href="./README.md">文档索引 / Docs index</a>
+        </div>
       </div>
     </footer>
   </body>

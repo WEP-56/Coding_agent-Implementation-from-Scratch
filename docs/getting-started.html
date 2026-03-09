@@ -3,358 +3,290 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>快速上手 | CodingGirl Docs</title>
+    <title>快速开始 | Coding Agent Implementation from Scratch</title>
     <meta
       name="description"
-      content="CodingGirl 快速上手文档，涵盖 Python Core、桌面端原型、模型配置与 GitHub Pages 发布。"
+      content="快速开始页面：用最短命令跑通 Python core、桌面前端和 GitHub Pages 文档部署。"
     >
     <link rel="stylesheet" href="./assets/site.css">
+    <script src="./assets/site.js" defer></script>
   </head>
   <body>
     <header class="site-header">
       <div class="container header-shell">
         <a class="brand" href="./index.html">
-          <span class="brand-mark">CG</span>
-          <span class="brand-stack">
-            <span class="brand-title">CodingGirl Docs</span>
-            <span class="brand-subtitle">Getting Started</span>
+          <span class="brand-mark">CA</span>
+          <span class="brand-copy">
+            <span class="brand-title">Coding Agent Implementation from Scratch</span>
+            <span class="brand-subtitle">Quick Start / 快速开始</span>
           </span>
         </a>
-        <nav class="main-nav" aria-label="主导航">
-          <a href="./index.html">首页</a>
-          <a href="./getting-started.html" aria-current="page">快速上手</a>
-          <a href="./architecture.html">架构原理</a>
-          <a href="./roadmap.html">现状与路线图</a>
-          <a href="./codex-alignment.html">对标改造</a>
+        <nav class="main-nav" aria-label="Main navigation">
+          <a href="./index.html">指引 / Guide</a>
+          <a href="./roadmap.html">使用教程 / Tutorial</a>
+          <a href="./getting-started.html" aria-current="page">快速开始 / Quick Start</a>
+          <a href="./architecture.html">从零开始 / From Scratch</a>
+          <a href="./papers.html">论文 / Papers</a>
         </nav>
+        <div class="header-tools">
+          <a
+            class="header-link"
+            href="https://github.com/WEP-56/Coding_agent-Implementation-from-Scratch"
+            target="_blank"
+            rel="noreferrer"
+          >
+            GitHub
+          </a>
+          <button class="theme-toggle" type="button" data-theme-toggle>
+            <span data-theme-label>切换到深色 / Switch to dark</span>
+          </button>
+        </div>
       </div>
     </header>
 
     <main>
       <section class="hero">
-        <div class="container hero-shell">
+        <div class="container hero-grid">
           <article class="hero-card">
-            <div class="eyebrow">Tutorial</div>
-            <h1>先把仓库跑起来，再判断下一步该改哪里</h1>
-            <p class="lead">
-              这份文档把 CodingGirl 当前可运行的部分拆成两条路线：Python Core 和 Desktop Prototype。
-              你不需要一次把所有东西都跑起来，更不应该把“前端页面能打开”误判成“整个 agent 已经产品可用”。
-            </p>
-            <div class="hero-actions">
-              <a class="button-link primary" href="#python-core">运行 Python Core</a>
-              <a class="button-link secondary" href="#desktop-prototype">运行桌面端原型</a>
+            <div class="eyebrow">Fastest Path</div>
+            <h1 class="headline">
+              先把仓库跑起来
+              <span>Get the repository running before you optimize your mental model.</span>
+            </h1>
+            <div class="dual-copy lead">
+              <p>这页只保留最有用的命令链：先验证 Python core，再启动桌面端，最后说明如何把 <code>docs/</code> 发到 GitHub Pages。</p>
+              <p>This page keeps the shortest useful command path: validate the Python core, start the desktop app, then publish <code>docs/</code> with GitHub Pages.</p>
+            </div>
+            <div class="button-row" style="margin-top: 1.25rem;">
+              <a class="button-link primary" href="#python-core">Python Core</a>
+              <a class="button-link secondary" href="#desktop">Desktop App</a>
             </div>
           </article>
+
           <div class="stack">
-            <article class="note-card">
-              <div class="metric-label">推荐顺序</div>
-              <p>先跑 Python 测试与 CLI，再启动桌面端。这样最容易看清哪些能力是真实存在、哪些只是 UI 壳。</p>
+            <article class="stat-card">
+              <div class="metric-label">Recommended Order / 推荐顺序</div>
+              <div class="mini-copy">
+                <p>先 Python，再桌面端，最后再看文档部署。</p>
+                <p>Python first, desktop second, docs deployment last.</p>
+              </div>
             </article>
-            <article class="note-card">
-              <div class="metric-label">边界提醒</div>
-              <p>
-                <code>tmp/</code> 中的上游源码只是参考资料。你可以阅读它们来理解 Codex / OpenCode 的思路，
-                但当前项目的运行入口并不依赖它们。
-              </p>
+            <article class="stat-card">
+              <div class="metric-label">Optional Toolchain / 可选依赖</div>
+              <div class="mini-copy">
+                <p>只看网页文档不需要 Node；只跑桌面 Web 预览不需要 Rust；真正的 Tauri 桌面构建才需要完整 Rust/Tauri 工具链。</p>
+                <p>You do not need Node just to read the docs, and you do not need Rust to run the browser preview. Rust/Tauri is only required for the real desktop build.</p>
+              </div>
             </article>
           </div>
         </div>
       </section>
 
-      <section>
+      <section class="section">
         <div class="container">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Repository Shape</div>
-              <h2>仓库结构先看懂</h2>
+              <div class="section-kicker">Prerequisites</div>
+              <h2>环境前提<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Tooling required for each path.</span></h2>
             </div>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>路径</th>
-                  <th>角色</th>
-                  <th>你现在应该怎么理解它</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>codinggirl/</code></td>
-                  <td>Python agent core</td>
-                  <td>当前最接近“真正 runtime”的部分，包含 contracts、索引、patch、SQLite、CLI。</td>
-                </tr>
-                <tr>
-                  <td><code>tests/</code></td>
-                  <td>单元测试</td>
-                  <td>验证 workspace、storage、patch、indexer、orchestrator、llm adapter、policy 等基础能力。</td>
-                </tr>
-                <tr>
-                  <td><code>apps/desktop/</code></td>
-                  <td>桌面端原型</td>
-                  <td>有真实本地交互能力，但运行时仍偏实验性质，尚未和 Python core 统一。</td>
-                </tr>
-                <tr>
-                  <td><code>docs/</code></td>
-                  <td>新文档主入口</td>
-                  <td>后续面对用户、协作者和 GitHub Pages 的事实基线。</td>
-                </tr>
-                <tr>
-                  <td><code>tmp/</code></td>
-                  <td>上游参考</td>
-                  <td>只读参考区，不是本项目的工作代码。</td>
-                </tr>
-              </tbody>
-            </table>
+          <div class="cards-grid three">
+            <article class="panel">
+              <h3>Python 路线 / Python path</h3>
+              <ul class="check-list">
+                <li>Python 3.11+</li>
+                <li><code>py</code> 命令可用（Windows）</li>
+                <li>建议在仓库根目录执行</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>前端预览 / Frontend preview</h3>
+              <ul class="check-list">
+                <li>Node.js 20+</li>
+                <li><code>npm install</code></li>
+                <li>浏览器可打开 Vite 开发服务器</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>Tauri 桌面 / Tauri desktop</h3>
+              <ul class="check-list">
+                <li>Rust toolchain</li>
+                <li>Tauri v2 所需系统依赖</li>
+                <li>只在需要原生桌面打包时再准备</li>
+              </ul>
+            </article>
           </div>
         </div>
       </section>
 
-      <section id="python-core">
+      <section class="section" id="python-core">
         <div class="container">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Path A</div>
-              <h2>Python Core 快速运行</h2>
+              <div class="section-kicker">Python Core</div>
+              <h2>最短命令链<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Smallest useful Python command sequence.</span></h2>
             </div>
           </div>
-          <div class="grid two">
-            <article class="panel">
-              <h3>环境要求</h3>
-              <ul class="list-plain">
-                <li>Python 3.11 或更高版本</li>
-                <li>Windows 下可直接用 <code>py</code> 命令</li>
-                <li>建议先在仓库根目录执行，不要在 <code>tmp/</code> 中试跑</li>
-              </ul>
-            </article>
-            <article class="panel">
-              <h3>第一轮推荐动作</h3>
-              <ul class="list-plain">
-                <li>安装开发依赖</li>
-                <li>执行测试，确认基础能力没有坏</li>
-                <li>初始化 SQLite</li>
-                <li>跑索引与编排样例</li>
-              </ul>
-            </article>
-          </div>
-          <article class="panel panel-dark" style="margin-top: 1rem;">
+          <article class="panel panel-dark">
             <pre><code>py -m pip install -e .[dev]
 py -m pytest
 py -m codinggirl init
-py -m codinggirl index --repo . --index-dir .codinggirl/index --max-lines 160 --focus-terms auth,login
-py -m codinggirl orchestrate --repo . --db .codinggirl/codinggirl.sqlite3 --goal "replace [old] with [new] in [README.md]"</code></pre>
+py -m codinggirl index --repo . --index-dir .codinggirl/index --max-lines 160
+py -m codinggirl llm-probe --provider mock --model mock-1 --prompt "hello adapter"</code></pre>
           </article>
-          <article class="panel" style="margin-top: 1rem;">
-            <h3>每条命令在做什么</h3>
-            <div class="timeline-list">
-              <div class="timeline-item">
-                <strong><code>py -m pytest</code></strong>
-                确认 workspace sandbox、patch engine、storage、indexer、orchestrator 和适配器层没有明显回归。
-              </div>
-              <div class="timeline-item">
-                <strong><code>codinggirl init</code></strong>
-                在默认路径 <code>.codinggirl/codinggirl.sqlite3</code> 初始化 SQLite schema。
-              </div>
-              <div class="timeline-item">
-                <strong><code>codinggirl index</code></strong>
-                生成 <code>manifest.json</code>、<code>symbols.sqlite</code> 和 <code>repo_map.txt</code>，帮助 agent 理解仓库结构。
-              </div>
-              <div class="timeline-item">
-                <strong><code>codinggirl orchestrate</code></strong>
-                运行当前最小 orchestrator，但注意它目前只支持一种非常窄的目标语法：
-                <code>replace [old] with [new] in [path]</code>。
-              </div>
-            </div>
-          </article>
-        </div>
-      </section>
-
-      <section>
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Core Features</div>
-              <h2>你可以继续试的几个入口</h2>
-            </div>
-          </div>
-          <div class="grid two">
+          <div class="cards-grid two" style="margin-top: 1rem;">
             <article class="panel">
-              <h3>LLM Adapter 探针</h3>
-              <p>先用 mock provider 验证协议，再切换到 OpenAI-compatible 服务。</p>
-              <pre><code>py -m codinggirl llm-probe --provider mock --model mock-1 --prompt "hello adapter"
-py -m codinggirl llm-probe --provider mock --model mock-1 --with-tool --prompt "CALL_TOOL: ping"</code></pre>
+              <h3>为什么是这 5 步 / Why these five steps</h3>
+              <ol class="soft-list">
+                <li><code>pip install</code> 安装包和测试依赖。</li>
+                <li><code>pytest</code> 快速验证 workspace、patch、sqlite、indexer、policy、adapter 主链没有坏。</li>
+                <li><code>codinggirl init</code> 初始化本地 sqlite schema。</li>
+                <li><code>codinggirl index</code> 生成 manifest、symbols.sqlite、repo_map。</li>
+                <li><code>llm-probe</code> 验证 LLM adapter 通道本身可用。</li>
+              </ol>
             </article>
             <article class="panel">
-              <h3>Telegram 本地模拟</h3>
-              <p>它不是联网 bot，而是一个本地模拟入口，用来验证会话指令与状态管理。</p>
-              <pre><code>py -m codinggirl telegram-simulate --chat-id 7 --text start
-py -m codinggirl telegram-simulate --chat-id 7 --text "set_repo ."
-py -m codinggirl telegram-simulate --chat-id 7 --text "goal replace [old] with [new] in [README.md]"</code></pre>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section id="desktop-prototype">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Path B</div>
-              <h2>Desktop Prototype 运行方式</h2>
-            </div>
-          </div>
-          <div class="grid two">
-            <article class="panel">
-              <h3>环境要求</h3>
-              <ul class="list-plain">
-                <li>Node.js 20+ 更稳妥</li>
-                <li>桌面打包需要 Rust toolchain 和 Tauri 所需的系统依赖</li>
-                <li>仅运行 Web 开发界面时，部分本地能力会退化到 mock / browser 受限行为</li>
+              <h3>看结果时重点观察 / What to look for</h3>
+              <ul class="check-list">
+                <li><code>.codinggirl/codinggirl.sqlite3</code> 是否生成。</li>
+                <li><code>.codinggirl/index/</code> 是否出现 <code>manifest.json</code>、<code>symbols.sqlite</code>、<code>repo_map.txt</code>。</li>
+                <li>测试是否覆盖了 workspace、patch、sqlite、llm adapter 等基础能力。</li>
               </ul>
             </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Narrow Orchestrator</div>
+              <h2>当前 orchestrate 的真实边界<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">The current orchestrator is intentionally narrow.</span></h2>
+            </div>
+          </div>
+          <div class="cards-grid two">
             <article class="panel">
-              <h3>启动命令</h3>
+              <h3>可以这样试 / You can try it like this</h3>
+              <pre><code>py -m codinggirl orchestrate ^
+  --repo . ^
+  --db .codinggirl/codinggirl.sqlite3 ^
+  --goal "replace [old] with [new] in [README.md]"</code></pre>
+            </article>
+            <article class="panel">
+              <h3>不要误解它 / Do not over-read it</h3>
+              <div class="mini-copy">
+                <p>它现在不是通用 agent planner，而是一个用来打通 plan → read → diff → review → apply → verify 链路的 MVP。</p>
+                <p>It is not a general-purpose planner yet. It is an MVP that proves the plan → read → diff → review → apply → verify chain.</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="desktop">
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Desktop</div>
+              <h2>前端与桌面端启动方式<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Run the frontend preview or the Tauri desktop shell.</span></h2>
+            </div>
+          </div>
+          <div class="cards-grid two">
+            <article class="panel">
+              <h3>浏览器预览 / Browser preview</h3>
               <pre><code>cd apps/desktop
 npm install
 npm run dev</code></pre>
-              <p>如果要直接运行 Tauri 桌面模式：</p>
-              <pre><code>npm run tauri build</code></pre>
+              <div class="mini-copy" style="margin-top: 0.75rem;">
+                <p>这是最快看到前端界面的方式。</p>
+                <p>This is the fastest way to see the frontend.</p>
+              </div>
+            </article>
+            <article class="panel">
+              <h3>原生桌面 / Native desktop</h3>
+              <pre><code>cd apps/desktop
+npm install
+npm run desktop</code></pre>
+              <div class="mini-copy" style="margin-top: 0.75rem;">
+                <p>如果只想打包桌面应用，也可以执行 <code>npm run tauri build</code>。</p>
+                <p>If you only want the packaged native app, use <code>npm run tauri build</code>.</p>
+              </div>
             </article>
           </div>
-          <article class="panel" style="margin-top: 1rem;">
-            <h3>桌面端当前能体验什么</h3>
-            <ul class="list-plain">
-              <li>仓库与会话列表</li>
-              <li>三栏工作台与聊天区</li>
-              <li>Plan / Build / Auto 模式切换</li>
-              <li>时间线、Diff、Tool Calls、Logs、Artifacts、Trace 导出</li>
-              <li>审批队列、Session Permission、Memory Blocks</li>
-            </ul>
-            <p class="accent-line">
-              但要注意：桌面端的模型 tool loop 目前是 Rust 命令层内的一套独立实现，并没有直接复用 Python core 的 orchestrator。
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Desktop Features</div>
+              <h2>启动后能看到什么<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">What you can inspect after the app starts.</span></h2>
+            </div>
+          </div>
+          <div class="cards-grid three">
+            <article class="panel">
+              <h3>Workspace</h3>
+              <ul class="check-list">
+                <li>仓库与会话列表</li>
+                <li>聊天区与模式切换</li>
+                <li>右侧 detail / trace / context 面板</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>Workflow State</h3>
+              <ul class="check-list">
+                <li>timeline</li>
+                <li>diff files</li>
+                <li>tool calls / logs / artifacts</li>
+              </ul>
+            </article>
+            <article class="panel">
+              <h3>Safety + Recovery</h3>
+              <ul class="check-list">
+                <li>approval queue</li>
+                <li>trace export</li>
+                <li>rollback patch artifact</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">Pages Deployment</div>
+              <h2>GitHub Pages 发布<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Publish the docs site with no extra build step.</span></h2>
+            </div>
+          </div>
+          <article class="panel">
+            <ol class="soft-list">
+              <li>确保 <code>docs/</code> 已提交到仓库。</li>
+              <li>GitHub 仓库设置中开启 Pages。</li>
+              <li>Source 选择当前分支的 <code>/docs</code> 目录。</li>
+              <li>Pages 生效后，入口页就是 <code>docs/index.html</code>。</li>
+            </ol>
+            <p class="note-inline" style="margin-top: 1rem;">
+              这套站点是静态文件，不需要额外构建命令。 The site is plain static files, so no extra docs build step is required.
             </p>
           </article>
-        </div>
-      </section>
-
-      <section>
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Working Modes</div>
-              <h2>Plan / Build / Auto 应该怎么用</h2>
-            </div>
-          </div>
-          <div class="grid three">
-            <article class="panel">
-              <h3>Plan</h3>
-              <p>只允许分析，不允许写入。适合先读代码、先生成计划、先观察模型是否真的理解问题。</p>
-            </article>
-            <article class="panel">
-              <h3>Build</h3>
-              <p>默认推荐模式。允许模型准备修改，但 mutating tools 需要显式审批，比较接近当前最安全的协作方式。</p>
-            </article>
-            <article class="panel">
-              <h3>Auto</h3>
-              <p>允许自动应用改动。当前只能在你已经明确知道仓库和工具行为可靠时再使用，不建议把它当成默认工作流。</p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Model Setup</div>
-              <h2>OpenAI-compatible 配置方式</h2>
-            </div>
-          </div>
-          <div class="grid two">
-            <article class="panel">
-              <h3>Python Core</h3>
-              <pre><code>py -m codinggirl llm-probe \
-  --provider openai-compatible \
-  --model gpt-4o-mini \
-  --base-url https://api.openai.com \
-  --api-key &lt;KEY&gt; \
-  --prompt "hi"</code></pre>
-            </article>
-            <article class="panel">
-              <h3>Desktop Prototype</h3>
-              <p>
-                在设置页填写 Provider、Base URL、API Key 和 Model。当前桌面端会优先走
-                OpenAI-compatible chat completions，并通过工具循环尝试读取仓库和申请变更。
-              </p>
-              <p>
-                如果没有有效配置，桌面端会退回 mock 提示文本，而不是变成一个真正可修改代码的 agent。
-              </p>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">GitHub Pages</div>
-              <h2>文档站点发布</h2>
-            </div>
-          </div>
-          <div class="grid two">
-            <article class="panel">
-              <h3>为什么这套 docs 可以直接发布</h3>
-              <p>
-                站点由 <code>index.html</code>、多个文档页面和一份公共 CSS 组成，不依赖构建工具。只要
-                GitHub 能提供静态文件托管，它就可以工作。
-              </p>
-            </article>
-            <article class="panel">
-              <h3>推荐步骤</h3>
-              <ol class="list-plain">
-                <li>把仓库推送到 GitHub。</li>
-                <li>打开仓库 Settings → Pages。</li>
-                <li>Source 选择部署分支，目录选择 <code>/docs</code>。</li>
-                <li>确认站点首页使用 <code>docs/index.html</code>。</li>
-              </ol>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section>
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Troubleshooting</div>
-              <h2>常见误区与排查建议</h2>
-            </div>
-          </div>
-          <div class="grid two">
-            <article class="panel">
-              <h3>“桌面 UI 跑起来了，为什么 agent 还不够智能？”</h3>
-              <p>
-                因为 UI 能运行不代表 runtime 已统一。当前真正的核心差距在于事件模型、上下文生命周期、
-                工具验证与恢复语义，而不是页面能不能打开。
-              </p>
-            </article>
-            <article class="panel">
-              <h3>“orchestrate 命令为什么看起来很弱？”</h3>
-              <p>
-                这是预期内的。当前 Python orchestrator 只是一个非常窄的 MVP，用来证明 contracts、workspace、
-                patch、review、verify 这条链路成立，而不是完整智能编排器。
-              </p>
-            </article>
-          </div>
         </div>
       </section>
     </main>
 
     <footer class="site-footer">
       <div class="container footer-shell">
-        <span>如果你已经跑通命令，下一步建议阅读架构原理。</span>
-        <a class="text-link" href="./architecture.html">前往架构原理</a>
+        <div>
+          <p class="footer-title">Quick Start</p>
+          <p class="muted">跑通之后，下一页建议看使用教程。 / After you get it running, continue with the tutorial.</p>
+        </div>
+        <div class="footer-links">
+          <a class="link-strong" href="./roadmap.html">使用教程 / Tutorial</a>
+          <a class="link-strong" href="./README.md">文档索引 / Docs index</a>
+        </div>
       </div>
     </footer>
   </body>

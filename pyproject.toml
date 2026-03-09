@@ -3,6 +3,7 @@ name = "codinggirl"
 version = "0.0.1"
 description = "Lightweight, model-agnostic coding agent core"
 readme = "README.md"
+license = { text = "MIT" }
 requires-python = ">=3.11"
 dependencies = []
 
