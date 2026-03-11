@@ -4,6 +4,7 @@ from codinggirl.runtime.tools.builtins_fs import (
     make_fs_glob,
     make_fs_insert_at_line,
     make_fs_list_dir,
+    make_fs_read_many_files,
     make_fs_read_file,
     make_fs_read_range,
     make_fs_replace_text,
@@ -152,6 +153,40 @@ def create_default_registry(workspace: RepoWorkspace) -> ToolRegistry:
             risk_level="medium",
         ),
         make_fs_insert_at_line(workspace),
+    )
+
+    reg.register(
+        ToolSpec(
+            name="fs_read_many_files",
+            description="Read many UTF-8 files (or ranges) within repo workspace in a single call.",
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "items": {
+                        "type": "array",
+                        "items": {
+                            "type": "object",
+                            "properties": {
+                                "path": {"type": "string"},
+                                "start_line": {"type": "integer", "minimum": 1},
+                                "end_line": {"type": "integer", "minimum": 1},
+                                "offset": {"type": "integer", "minimum": 0},
+                                "limit": {"type": "integer", "minimum": 0},
+                                "max_lines": {"type": "integer", "minimum": 0},
+                                "max_bytes": {"type": "integer", "minimum": 1},
+                            },
+                            "required": ["path"],
+                            "additionalProperties": False,
+                        },
+                    },
+                    "max_total_bytes": {"type": "integer", "minimum": 1, "default": 2_000_000},
+                },
+                "required": ["items"],
+                "additionalProperties": False,
+            },
+            risk_level="low",
+        ),
+        make_fs_read_many_files(workspace),
     )
 
     reg.register(

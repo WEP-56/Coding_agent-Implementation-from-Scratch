@@ -37,6 +37,7 @@ class FilePatch:
 
 
 _HUNK_RE = re.compile(r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@")
+_DIFF_GIT_RE = re.compile(r"^diff --git (.+?) (.+?)$")
 
 
 def _sha256_text(text: str) -> str:
@@ -54,36 +55,78 @@ def parse_unified_diff(patch: str) -> list[FilePatch]:
     lines = patch.splitlines()
     i = 0
     out: list[FilePatch] = []
+    current_old: str | None = None
+    current_new: str | None = None
+    current_rename_from: str | None = None
+    current_rename_to: str | None = None
+    current_hunks: list[Hunk] = []
+
+    def flush_current() -> None:
+        nonlocal current_old, current_new, current_rename_from, current_rename_to, current_hunks
+        if current_old is None and current_new is None:
+            current_hunks = []
+            current_rename_from = None
+            current_rename_to = None
+            return
+
+        old_path = current_old
+        new_path = current_new
+        if old_path is None and current_rename_from is not None:
+            old_path = current_rename_from
+        if new_path is None and current_rename_to is not None:
+            new_path = current_rename_to
+
+        if old_path is not None and new_path is not None:
+            out.append(FilePatch(old_path=old_path, new_path=new_path, hunks=current_hunks))
+
+        current_old = None
+        current_new = None
+        current_rename_from = None
+        current_rename_to = None
+        current_hunks = []
+
     while i < len(lines):
         line = lines[i]
-        if not line.startswith("--- "):
+        m_diff = _DIFF_GIT_RE.match(line)
+        if m_diff:
+            flush_current()
+            current_old = m_diff.group(1).strip()
+            current_new = m_diff.group(2).strip()
             i += 1
             continue
-        old_path = line[4:].strip()
-        i += 1
-        if i >= len(lines) or not lines[i].startswith("+++ "):
-            raise PatchError("invalid patch: missing +++")
-        new_path = lines[i][4:].strip()
-        i += 1
 
-        hunks: list[Hunk] = []
-        while i < len(lines):
-            if lines[i].startswith("--- "):
-                break
-            m = _HUNK_RE.match(lines[i])
-            if not m:
-                i += 1
-                continue
+        if line.startswith("rename from "):
+            current_rename_from = line[len("rename from ") :].strip()
+            i += 1
+            continue
+        if line.startswith("rename to "):
+            current_rename_to = line[len("rename to ") :].strip()
+            i += 1
+            continue
+
+        if line.startswith("--- "):
+            current_old = line[4:].strip()
+            i += 1
+            if i >= len(lines) or not lines[i].startswith("+++ "):
+                raise PatchError("invalid patch: missing +++")
+            current_new = lines[i][4:].strip()
+            i += 1
+            continue
+
+        m = _HUNK_RE.match(line)
+        if m:
             old_start = int(m.group(1))
             old_len = int(m.group(2) or "1")
             new_start = int(m.group(3))
             new_len = int(m.group(4) or "1")
             i += 1
             hunk_lines: list[str] = []
-            while i < len(lines) and not lines[i].startswith("@@ ") and not lines[i].startswith("--- "):
+            while i < len(lines):
+                if _HUNK_RE.match(lines[i]) or lines[i].startswith("diff --git ") or lines[i].startswith("--- "):
+                    break
                 hunk_lines.append(lines[i])
                 i += 1
-            hunks.append(
+            current_hunks.append(
                 Hunk(
                     old_start=old_start,
                     old_len=old_len,
@@ -92,8 +135,11 @@ def parse_unified_diff(patch: str) -> list[FilePatch]:
                     lines=hunk_lines,
                 )
             )
+            continue
 
-        out.append(FilePatch(old_path=old_path, new_path=new_path, hunks=hunks))
+        i += 1
+
+    flush_current()
     return out
 
 
@@ -215,24 +261,40 @@ def make_patch_apply_unified_diff(workspace: RepoWorkspace):
             for fp in file_patches:
                 old_path = fp.old_path
                 new_path = fp.new_path
+                old_target = None if old_path == "/dev/null" else _strip_prefix(old_path)
+                new_target = None if new_path == "/dev/null" else _strip_prefix(new_path)
+
+                if new_target is not None and old_target is not None and old_target != new_target:
+                    # Rename (possibly with edits).
+                    old_exists = workspace.resolve_path(old_target).exists()
+                    if not old_exists:
+                        raise PatchError(f"file not found: {old_target}")
+                    if workspace.resolve_path(new_target).exists():
+                        raise PatchError(f"target already exists: {new_target}")
 
                 if old_path == "/dev/null":
-                    before_lines: list[str] = []
-                    target = _strip_prefix(new_path)
+                    before_lines = []
+                    if new_target is None:
+                        raise PatchError("invalid add patch")
+                    if workspace.resolve_path(new_target).exists():
+                        raise PatchError(f"target already exists: {new_target}")
                     before_text_full = ""
                 elif new_path == "/dev/null":
                     if not allow_delete:
                         raise PatchError("delete file not allowed")
-                    target = _strip_prefix(old_path)
-                    before_text = workspace.read_text(target)
+                    if old_target is None:
+                        raise PatchError("invalid delete patch")
+                    before_text = workspace.read_text(old_target)
                     results.append(
-                        {"path": target, "op": "delete", "sha256_before": _sha256_text(before_text)}
+                        {"path": old_target, "op": "delete", "sha256_before": _sha256_text(before_text)}
                     )
-                    staged.append({"path": target, "op": "delete", "before": before_text})
+                    staged.append({"path": old_target, "op": "delete", "before": before_text})
                     continue
                 else:
-                    target = _strip_prefix(new_path)
-                    before_text = workspace.read_text(target)
+                    if old_target is None or new_target is None:
+                        raise PatchError("invalid modify patch")
+                    source_path = old_target
+                    before_text = workspace.read_text(source_path)
                     before_lines = before_text.splitlines()
                     before_text_full = "\n".join(before_lines) + ("\n" if before_lines else "")
 
@@ -241,20 +303,25 @@ def make_patch_apply_unified_diff(workspace: RepoWorkspace):
 
                 staged.append(
                     {
-                        "path": target,
+                        "path": new_target,
                         "op": "modify" if old_path != "/dev/null" else "add",
                         "before": before_text_full,
                         "after": after_text,
+                        "source_path": old_target,
                     }
                 )
                 results.append(
                     {
-                        "path": target,
+                        "path": new_target,
                         "op": "modify" if old_path != "/dev/null" else "add",
                         "sha256_before": _sha256_text(before_text_full),
                         "sha256_after": _sha256_text(after_text),
                     }
                 )
+                if old_target is not None and new_target is not None and old_target != new_target:
+                    results[-1]["op"] = "rename"
+                    results[-1]["old_path"] = old_target
+                    staged[-1]["op"] = "rename"
 
             if dry_run:
                 return ToolResult(
@@ -269,15 +336,16 @@ def make_patch_apply_unified_diff(workspace: RepoWorkspace):
                 bp = workspace.resolve_path(backup_dir)
                 bp.mkdir(parents=True, exist_ok=True)
                 for action in staged:
-                    if action["op"] != "modify":
+                    if action["op"] not in ("modify", "rename"):
                         continue
+                    source_path = str(action.get("source_path") or action["path"])
                     target = str(action["path"])
                     before = str(action["before"])
                     backup_file = (bp / (target.replace("/", "__") + ".bak"))
-                    newline = workspace._detect_newline_style(workspace.resolve_path(target))
+                    newline = workspace._detect_newline_style(workspace.resolve_path(source_path))
                     backup_file.write_text(before, encoding="utf-8", newline=newline)
                     for r in results:
-                        if r.get("path") == target and r.get("op") == "modify":
+                        if r.get("path") == target and r.get("op") in ("modify", "rename"):
                             r["backup"] = str(Path(backup_dir) / backup_file.name)
                             break
 
@@ -289,6 +357,14 @@ def make_patch_apply_unified_diff(workspace: RepoWorkspace):
                     if p.exists():
                         p.unlink()
                     continue
+
+                source_path = action.get("source_path")
+                if source_path and str(source_path) != target:
+                    # Rename first to preserve newline style on the new path.
+                    src = workspace.resolve_path(str(source_path))
+                    dst = workspace.resolve_path(target)
+                    dst.parent.mkdir(parents=True, exist_ok=True)
+                    src.replace(dst)
                 workspace.write_text(target, str(action["after"]))
 
         except PatchConflict as e:

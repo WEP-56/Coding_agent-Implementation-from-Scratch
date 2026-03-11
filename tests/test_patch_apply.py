@@ -146,3 +146,56 @@ def test_patch_apply_conflict_does_not_create_backup(tmp_path: Path):
     assert ws.read_text("a.txt") == "one\ntwo\n"
     assert ws.read_text("b.txt") == "alpha\nbeta\n"
     assert (tmp_path / ".codinggirl" / "backups").exists() is False
+
+
+def test_patch_apply_accepts_diff_git_headers(tmp_path: Path):
+    ws = RepoWorkspace.from_path(tmp_path)
+    ws.write_text("a.txt", "one\ntwo\n")
+
+    patch = """diff --git a/a.txt b/a.txt
+index 0000000..1111111 100644
+--- a/a.txt
++++ b/a.txt
+@@ -1,2 +1,2 @@
+ one
+-two
++TWO
+"""
+
+    reg = create_default_registry(ws)
+    store = SQLiteStore(tmp_path / "db.sqlite3")
+    store.init_schema()
+    run_id = uuid.uuid4().hex
+    store.create_run(run_id, created_at=utc_now_iso(), metadata={})
+    runner = ToolRunner(registry=reg, store=store, run_id=run_id)
+
+    res = runner.call("patch_apply_unified_diff", {"patch": patch})
+    assert res.ok is True
+    assert ws.read_text("a.txt") == "one\nTWO\n"
+
+
+def test_patch_apply_rename_only(tmp_path: Path):
+    ws = RepoWorkspace.from_path(tmp_path)
+    p = tmp_path / "old.txt"
+    p.write_bytes(b"one\r\ntwo\r\n")
+
+    patch = """diff --git a/old.txt b/new.txt
+similarity index 100%
+rename from old.txt
+rename to new.txt
+"""
+
+    reg = create_default_registry(ws)
+    store = SQLiteStore(tmp_path / "db.sqlite3")
+    store.init_schema()
+    run_id = uuid.uuid4().hex
+    store.create_run(run_id, created_at=utc_now_iso(), metadata={})
+    runner = ToolRunner(registry=reg, store=store, run_id=run_id)
+
+    res = runner.call("patch_apply_unified_diff", {"patch": patch})
+    assert res.ok is True
+    assert (tmp_path / "old.txt").exists() is False
+    assert (tmp_path / "new.txt").exists() is True
+    data = (tmp_path / "new.txt").read_bytes()
+    assert b"\r\n" in data
+    assert b"\n" not in data.replace(b"\r\n", b"")

@@ -68,3 +68,43 @@ def test_toolrunner_fs_write_and_insert(tmp_path: Path):
     i1 = runner.call("fs_insert_at_line", {"path": "a.txt", "line": 2, "text": "INSERT\n"})
     assert i1.ok is True
     assert ws.read_text("a.txt") == "one\nINSERT\ntwo\n"
+
+
+def test_toolrunner_fs_read_many_files(tmp_path: Path):
+    ws = RepoWorkspace.from_path(tmp_path)
+    ws.write_text("a.txt", "one\ntwo\nthree\n")
+    ws.write_text("b.txt", "alpha\nbeta\ngamma\n")
+    ws.write_text("big.txt", "0123456789\n" * 60_000)
+
+    reg = create_default_registry(ws)
+    store = SQLiteStore(tmp_path / "db.sqlite3")
+    store.init_schema()
+    run_id = uuid.uuid4().hex
+    store.create_run(run_id, created_at=utc_now_iso(), metadata={})
+    runner = ToolRunner(registry=reg, store=store, run_id=run_id)
+
+    res = runner.call(
+        "fs_read_many_files",
+        {
+            "items": [
+                {"path": "a.txt", "start_line": 2, "limit": 2},
+                {"path": "b.txt"},
+                {"path": "big.txt", "start_line": 10, "limit": 3},
+                {"path": "missing.txt"},
+            ],
+            "max_total_bytes": 200_000,
+        },
+    )
+    assert res.ok is True
+    payload = res.content or {}
+    items = payload.get("items", [])
+    assert isinstance(items, list)
+    assert items[0]["path"] == "a.txt"
+    assert items[0]["start_line"] == 2
+    assert "two" in str(items[0]["text"])
+    assert items[1]["path"] == "b.txt"
+    assert "alpha" in str(items[1]["text"])
+    assert items[2]["path"] == "big.txt"
+    assert items[2]["total_lines"] == 60_000
+    assert items[3]["path"] == "missing.txt"
+    assert items[3]["ok"] is False

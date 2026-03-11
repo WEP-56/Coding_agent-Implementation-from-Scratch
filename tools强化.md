@@ -138,4 +138,6 @@ P0 做完后，下一步就是补“为什么修改还会失败”。
 - P0.1：`fs_read_range` 支持大文件分段读取（`codinggirl/runtime/workspace.py` 的 `read_text_range` 不再依赖 `read_text` 的 512KB 上限）
 - P1.2：写回保留原文件换行风格（CRLF/LF）（`codinggirl/runtime/workspace.py` 的 `write_text`）
 - P1.1（部分）：`patch_apply_unified_diff` 支持 `dry_run`，并在冲突时返回结构化 `conflict`（`codinggirl/runtime/tools/builtins_patch.py` + `codinggirl/runtime/defaults.py`）
+- P1.1（部分）：`patch_apply_unified_diff` 兼容 git 风格 diff 头（`diff --git` / `index` / `rename from/to` 等），并支持 rename-only patch（`codinggirl/runtime/tools/builtins_patch.py`）
 - P0.3（部分）：新增 `fs_write_file` / `fs_insert_at_line`（`codinggirl/runtime/tools/builtins_fs.py` + `codinggirl/runtime/defaults.py`），并在 workspace 层提供流式插入实现（`codinggirl/runtime/workspace.py`）
+- P2.5：新增 `fs_read_many_files`，支持一次性读取多文件/多切片（含大文件范围读取与总输出上限）（`codinggirl/runtime/tools/builtins_fs.py` + `codinggirl/runtime/defaults.py`）

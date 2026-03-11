@@ -96,3 +96,56 @@ def make_fs_insert_at_line(workspace: RepoWorkspace):
         return ToolResult(call_id=call.call_id, tool_name=call.tool_name, ok=True, content=result)
 
     return handler
+
+
+def make_fs_read_many_files(workspace: RepoWorkspace):
+    def handler(call: ToolCall) -> ToolResult:
+        items_arg = call.args.get("items")
+        if not isinstance(items_arg, list):
+            raise RuntimeError("items must be an array")
+
+        max_total_bytes = int(call.args.get("max_total_bytes", 2_000_000))
+        if max_total_bytes <= 0:
+            max_total_bytes = 1
+
+        out: list[dict[str, object]] = []
+        used = 0
+
+        for raw in items_arg:
+            if not isinstance(raw, dict):
+                raise RuntimeError("each item must be an object")
+            path = str(raw["path"])
+            start_line = raw.get("start_line")
+            end_line = raw.get("end_line")
+            offset = raw.get("offset")
+            limit = raw.get("limit")
+            max_lines = raw.get("max_lines")
+            max_bytes = raw.get("max_bytes")
+
+            try:
+                content = workspace.read_text_range(
+                    path,
+                    start_line=int(start_line) if start_line is not None else None,
+                    end_line=int(end_line) if end_line is not None else None,
+                    offset=int(offset) if offset is not None else None,
+                    limit=int(limit) if limit is not None else None,
+                    max_lines=int(max_lines) if max_lines is not None else None,
+                    max_bytes=int(max_bytes) if max_bytes is not None else 512_000,
+                )
+                text = str(content.get("text", ""))
+                used += len(text.encode("utf-8", errors="replace"))
+                out.append(content)
+            except Exception as e:  # noqa: BLE001
+                out.append({"path": path, "ok": False, "error": str(e)})
+
+            if used >= max_total_bytes:
+                break
+
+        return ToolResult(
+            call_id=call.call_id,
+            tool_name=call.tool_name,
+            ok=True,
+            content={"items": out, "truncated": used >= max_total_bytes, "max_total_bytes": max_total_bytes},
+        )
+
+    return handler
