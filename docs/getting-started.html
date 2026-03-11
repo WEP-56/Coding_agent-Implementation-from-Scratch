@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>快速开始 | Coding Agent Implementation from Scratch</title>
+    <title>快速开始 | CodingGirl</title>
     <meta
       name="description"
-      content="快速开始页面：用最短命令跑通 Python core、桌面前端和 GitHub Pages 文档部署。"
+      content="CodingGirl 快速开始：用最短命令跑通 Python core、索引构建，以及桌面端（Web 预览与 Tauri 桌面壳）。"
     >
     <link rel="stylesheet" href="./assets/site.css">
     <script src="./assets/site.js" defer></script>
@@ -15,30 +15,23 @@
     <header class="site-header">
       <div class="container header-shell">
         <a class="brand" href="./index.html">
-          <span class="brand-mark">CA</span>
+          <span class="brand-mark">CG</span>
           <span class="brand-copy">
-            <span class="brand-title">Coding Agent Implementation from Scratch</span>
-            <span class="brand-subtitle">Quick Start / 快速开始</span>
+            <span class="brand-title">CodingGirl</span>
+            <span class="brand-subtitle">快速开始</span>
           </span>
         </a>
         <nav class="main-nav" aria-label="Main navigation">
-          <a href="./index.html">指引 / Guide</a>
-          <a href="./roadmap.html">使用教程 / Tutorial</a>
-          <a href="./getting-started.html" aria-current="page">快速开始 / Quick Start</a>
-          <a href="./architecture.html">从零开始 / From Scratch</a>
-          <a href="./papers.html">论文 / Papers</a>
+          <a href="./index.html">首页</a>
+          <a href="./getting-started.html" aria-current="page">快速开始</a>
+          <a href="./roadmap.html">使用与工作流</a>
+          <a href="./architecture.html">架构与代码导览</a>
+          <a href="./papers.html">论文</a>
         </nav>
         <div class="header-tools">
-          <a
-            class="header-link"
-            href="https://github.com/WEP-56/Coding_agent-Implementation-from-Scratch"
-            target="_blank"
-            rel="noreferrer"
-          >
-            GitHub
-          </a>
+          <a class="header-link" href="../README.md">仓库 README</a>
           <button class="theme-toggle" type="button" data-theme-toggle>
-            <span data-theme-label>切换到深色 / Switch to dark</span>
+            <span data-theme-label>切换主题</span>
           </button>
         </div>
       </div>
@@ -48,110 +41,59 @@
       <section class="hero">
         <div class="container hero-grid">
           <article class="hero-card">
-            <div class="eyebrow">Fastest Path</div>
+            <div class="eyebrow">最短命令链</div>
             <h1 class="headline">
-              先把仓库跑起来
-              <span>Get the repository running before you optimize your mental model.</span>
+              先跑通，再理解
+              <span>先确保环境与依赖没问题，再进入架构细节。</span>
             </h1>
-            <div class="dual-copy lead">
-              <p>这页只保留最有用的命令链：先验证 Python core，再启动桌面端，最后说明如何把 <code>docs/</code> 发到 GitHub Pages。</p>
-              <p>This page keeps the shortest useful command path: validate the Python core, start the desktop app, then publish <code>docs/</code> with GitHub Pages.</p>
+            <div class="lead">
+              <p>本页默认在仓库根目录执行命令（Windows 以 <code>py</code> 为例）。</p>
             </div>
             <div class="button-row" style="margin-top: 1.25rem;">
-              <a class="button-link primary" href="#python-core">Python Core</a>
-              <a class="button-link secondary" href="#desktop">Desktop App</a>
+              <a class="button-link primary" href="#python">Python Core</a>
+              <a class="button-link secondary" href="#desktop">桌面端</a>
             </div>
           </article>
 
           <div class="stack">
             <article class="stat-card">
-              <div class="metric-label">Recommended Order / 推荐顺序</div>
+              <div class="metric-label">建议顺序</div>
               <div class="mini-copy">
-                <p>先 Python，再桌面端，最后再看文档部署。</p>
-                <p>Python first, desktop second, docs deployment last.</p>
+                <p>1) Python core → 2) index_build → 3) 桌面端（Web 或 Tauri）。</p>
               </div>
             </article>
             <article class="stat-card">
-              <div class="metric-label">Optional Toolchain / 可选依赖</div>
+              <div class="metric-label">依赖提示</div>
               <div class="mini-copy">
-                <p>只看网页文档不需要 Node；只跑桌面 Web 预览不需要 Rust；真正的 Tauri 桌面构建才需要完整 Rust/Tauri 工具链。</p>
-                <p>You do not need Node just to read the docs, and you do not need Rust to run the browser preview. Rust/Tauri is only required for the real desktop build.</p>
+                <p>只读文档不需要 Node/Rust；运行桌面端需要 Node；构建 Tauri 桌面壳需要 Rust/Tauri 环境。</p>
               </div>
             </article>
           </div>
         </div>
       </section>
 
-      <section class="section">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Prerequisites</div>
-              <h2>环境前提<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Tooling required for each path.</span></h2>
-            </div>
-          </div>
-          <div class="cards-grid three">
-            <article class="panel">
-              <h3>Python 路线 / Python path</h3>
-              <ul class="check-list">
-                <li>Python 3.11+</li>
-                <li><code>py</code> 命令可用（Windows）</li>
-                <li>建议在仓库根目录执行</li>
-              </ul>
-            </article>
-            <article class="panel">
-              <h3>前端预览 / Frontend preview</h3>
-              <ul class="check-list">
-                <li>Node.js 20+</li>
-                <li><code>npm install</code></li>
-                <li>浏览器可打开 Vite 开发服务器</li>
-              </ul>
-            </article>
-            <article class="panel">
-              <h3>Tauri 桌面 / Tauri desktop</h3>
-              <ul class="check-list">
-                <li>Rust toolchain</li>
-                <li>Tauri v2 所需系统依赖</li>
-                <li>只在需要原生桌面打包时再准备</li>
-              </ul>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="python-core">
+      <section class="section" id="python">
         <div class="container">
           <div class="section-head">
             <div>
               <div class="section-kicker">Python Core</div>
-              <h2>最短命令链<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Smallest useful Python command sequence.</span></h2>
+              <h2>安装与验证</h2>
             </div>
           </div>
-          <article class="panel panel-dark">
-            <pre><code>py -m pip install -e .[dev]
-py -m pytest
-py -m codinggirl init
-py -m codinggirl index --repo . --index-dir .codinggirl/index --max-lines 160
-py -m codinggirl llm-probe --provider mock --model mock-1 --prompt "hello adapter"</code></pre>
-          </article>
-          <div class="cards-grid two" style="margin-top: 1rem;">
+          <div class="cards-grid two">
             <article class="panel">
-              <h3>为什么是这 5 步 / Why these five steps</h3>
-              <ol class="soft-list">
-                <li><code>pip install</code> 安装包和测试依赖。</li>
-                <li><code>pytest</code> 快速验证 workspace、patch、sqlite、indexer、policy、adapter 主链没有坏。</li>
-                <li><code>codinggirl init</code> 初始化本地 sqlite schema。</li>
-                <li><code>codinggirl index</code> 生成 manifest、symbols.sqlite、repo_map。</li>
-                <li><code>llm-probe</code> 验证 LLM adapter 通道本身可用。</li>
-              </ol>
+              <h3>安装（开发模式）</h3>
+              <pre><code>py -m pip install -e .[dev]</code></pre>
+              <p class="note-inline" style="margin-top: 0.75rem;">
+                如果没有 <code>py</code>，可用 <code>python</code> 代替。
+              </p>
             </article>
             <article class="panel">
-              <h3>看结果时重点观察 / What to look for</h3>
-              <ul class="check-list">
-                <li><code>.codinggirl/codinggirl.sqlite3</code> 是否生成。</li>
-                <li><code>.codinggirl/index/</code> 是否出现 <code>manifest.json</code>、<code>symbols.sqlite</code>、<code>repo_map.txt</code>。</li>
-                <li>测试是否覆盖了 workspace、patch、sqlite、llm adapter 等基础能力。</li>
-              </ul>
+              <h3>跑测试（推荐）</h3>
+              <pre><code>py -m pytest</code></pre>
+              <p class="note-inline" style="margin-top: 0.75rem;">
+                这一步验证 workspace、patch、sqlite、indexer、policy 等底层链路是否可用。
+              </p>
             </article>
           </div>
         </div>
@@ -161,23 +103,23 @@ py -m codinggirl llm-probe --provider mock --model mock-1 --prompt "hello adapte
         <div class="container">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Narrow Orchestrator</div>
-              <h2>当前 orchestrate 的真实边界<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">The current orchestrator is intentionally narrow.</span></h2>
+              <div class="section-kicker">索引与 Repo Map</div>
+              <h2>生成可查询的仓库理解产物</h2>
             </div>
           </div>
           <div class="cards-grid two">
             <article class="panel">
-              <h3>可以这样试 / You can try it like this</h3>
-              <pre><code>py -m codinggirl orchestrate ^
-  --repo . ^
-  --db .codinggirl/codinggirl.sqlite3 ^
-  --goal "replace [old] with [new] in [README.md]"</code></pre>
+              <h3>CLI 索引（已有命令）</h3>
+              <pre><code>py -m codinggirl index --repo . --index-dir .codinggirl/index --max-lines 300</code></pre>
+              <div class="mini-copy" style="margin-top: 0.75rem;">
+                <p>会生成 <code>manifest.json</code>、<code>symbols.sqlite</code>、<code>repo_map.txt</code>。</p>
+              </div>
             </article>
             <article class="panel">
-              <h3>不要误解它 / Do not over-read it</h3>
-              <div class="mini-copy">
-                <p>它现在不是通用 agent planner，而是一个用来打通 plan → read → diff → review → apply → verify 链路的 MVP。</p>
-                <p>It is not a general-purpose planner yet. It is an MVP that proves the plan → read → diff → review → apply → verify chain.</p>
+              <h3>工具化索引（用于 runtime）</h3>
+              <pre><code>index_build</code></pre>
+              <div class="mini-copy" style="margin-top: 0.75rem;">
+                <p>桌面端与后端桥接后，可以直接以工具调用形式触发索引更新。</p>
               </div>
             </article>
           </div>
@@ -189,89 +131,36 @@ py -m codinggirl llm-probe --provider mock --model mock-1 --prompt "hello adapte
           <div class="section-head">
             <div>
               <div class="section-kicker">Desktop</div>
-              <h2>前端与桌面端启动方式<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Run the frontend preview or the Tauri desktop shell.</span></h2>
+              <h2>启动桌面端</h2>
             </div>
           </div>
           <div class="cards-grid two">
             <article class="panel">
-              <h3>浏览器预览 / Browser preview</h3>
+              <h3>Web 预览（最快）</h3>
               <pre><code>cd apps/desktop
 npm install
 npm run dev</code></pre>
               <div class="mini-copy" style="margin-top: 0.75rem;">
-                <p>这是最快看到前端界面的方式。</p>
-                <p>This is the fastest way to see the frontend.</p>
+                <p>适合先看 UI 与交互，不依赖 Rust。</p>
               </div>
             </article>
             <article class="panel">
-              <h3>原生桌面 / Native desktop</h3>
+              <h3>Tauri 桌面壳</h3>
               <pre><code>cd apps/desktop
 npm install
 npm run desktop</code></pre>
               <div class="mini-copy" style="margin-top: 0.75rem;">
-                <p>如果只想打包桌面应用，也可以执行 <code>npm run tauri build</code>。</p>
-                <p>If you only want the packaged native app, use <code>npm run tauri build</code>.</p>
+                <p>需要本机 Rust/Tauri 环境。构建产物：<code>npm run tauri build</code>。</p>
               </div>
             </article>
           </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Desktop Features</div>
-              <h2>启动后能看到什么<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">What you can inspect after the app starts.</span></h2>
-            </div>
-          </div>
-          <div class="cards-grid three">
-            <article class="panel">
-              <h3>Workspace</h3>
-              <ul class="check-list">
-                <li>仓库与会话列表</li>
-                <li>聊天区与模式切换</li>
-                <li>右侧 detail / trace / context 面板</li>
-              </ul>
-            </article>
-            <article class="panel">
-              <h3>Workflow State</h3>
-              <ul class="check-list">
-                <li>timeline</li>
-                <li>diff files</li>
-                <li>tool calls / logs / artifacts</li>
-              </ul>
-            </article>
-            <article class="panel">
-              <h3>Safety + Recovery</h3>
-              <ul class="check-list">
-                <li>approval queue</li>
-                <li>trace export</li>
-                <li>rollback patch artifact</li>
-              </ul>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Pages Deployment</div>
-              <h2>GitHub Pages 发布<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Publish the docs site with no extra build step.</span></h2>
-            </div>
-          </div>
-          <article class="panel">
-            <ol class="soft-list">
-              <li>确保 <code>docs/</code> 已提交到仓库。</li>
-              <li>GitHub 仓库设置中开启 Pages。</li>
-              <li>Source 选择当前分支的 <code>/docs</code> 目录。</li>
-              <li>Pages 生效后，入口页就是 <code>docs/index.html</code>。</li>
-            </ol>
-            <p class="note-inline" style="margin-top: 1rem;">
-              这套站点是静态文件，不需要额外构建命令。 The site is plain static files, so no extra docs build step is required.
-            </p>
+          <article class="panel" style="margin-top: 1.25rem;">
+            <h3>启动后建议检查什么</h3>
+            <ul class="check-list">
+              <li>workflow / trace / tools 面板是否能展示 run 的事件与工具调用。</li>
+              <li>审批（approval）路径是否工作；是否仍存在轮询（后续要替换为事件推送）。</li>
+              <li>diff、artifact、rollback 元数据是否能对齐到同一 run。</li>
+            </ul>
           </article>
         </div>
       </section>
@@ -280,14 +169,15 @@ npm run desktop</code></pre>
     <footer class="site-footer">
       <div class="container footer-shell">
         <div>
-          <p class="footer-title">Quick Start</p>
-          <p class="muted">跑通之后，下一页建议看使用教程。 / After you get it running, continue with the tutorial.</p>
+          <p class="footer-title">快速开始</p>
+          <p class="muted">跑通之后，建议进入“使用与工作流”。</p>
         </div>
         <div class="footer-links">
-          <a class="link-strong" href="./roadmap.html">使用教程 / Tutorial</a>
-          <a class="link-strong" href="./README.md">文档索引 / Docs index</a>
+          <a class="link-strong" href="./roadmap.html">使用与工作流</a>
+          <a class="link-strong" href="./README.md">文档索引</a>
         </div>
       </div>
     </footer>
   </body>
 </html>
+

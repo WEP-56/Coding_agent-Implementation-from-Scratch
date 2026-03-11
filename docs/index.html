@@ -3,10 +3,10 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>指引 | Coding Agent Implementation from Scratch</title>
+    <title>文档首页 | CodingGirl</title>
     <meta
       name="description"
-      content="GitHub Pages 文档首页：面向从零搭建 coding agent 与前端的教学性开源项目，提供中英双语导航、快速开始、使用教程、原理剖析与论文占位。"
+      content="CodingGirl 文档首页：面向新用户与开发者的上手指南，覆盖项目定位、快速开始、架构概览与开发约束。"
     >
     <link rel="stylesheet" href="./assets/site.css">
     <script src="./assets/site.js" defer></script>
@@ -15,30 +15,23 @@
     <header class="site-header">
       <div class="container header-shell">
         <a class="brand" href="./index.html">
-          <span class="brand-mark">CA</span>
+          <span class="brand-mark">CG</span>
           <span class="brand-copy">
-            <span class="brand-title">Coding Agent Implementation from Scratch</span>
-            <span class="brand-subtitle">Guide / 指引</span>
+            <span class="brand-title">CodingGirl</span>
+            <span class="brand-subtitle">文档</span>
           </span>
         </a>
         <nav class="main-nav" aria-label="Main navigation">
-          <a href="./index.html" aria-current="page">指引 / Guide</a>
-          <a href="./roadmap.html">使用教程 / Tutorial</a>
-          <a href="./getting-started.html">快速开始 / Quick Start</a>
-          <a href="./architecture.html">从零开始 / From Scratch</a>
-          <a href="./papers.html">论文 / Papers</a>
+          <a href="./index.html" aria-current="page">首页</a>
+          <a href="./getting-started.html">快速开始</a>
+          <a href="./roadmap.html">使用与工作流</a>
+          <a href="./architecture.html">架构与代码导览</a>
+          <a href="./papers.html">论文</a>
         </nav>
         <div class="header-tools">
-          <a
-            class="header-link"
-            href="https://github.com/WEP-56/Coding_agent-Implementation-from-Scratch"
-            target="_blank"
-            rel="noreferrer"
-          >
-            GitHub
-          </a>
+          <a class="header-link" href="../README.md">仓库 README</a>
           <button class="theme-toggle" type="button" data-theme-toggle>
-            <span data-theme-label>切换到深色 / Switch to dark</span>
+            <span data-theme-label>切换主题</span>
           </button>
         </div>
       </div>
@@ -48,141 +41,48 @@
       <section class="hero">
         <div class="container hero-grid">
           <article class="hero-card">
-            <div class="eyebrow">Open-source Teaching Project</div>
+            <div class="eyebrow">面向新用户与开发者</div>
             <h1 class="headline">
-              从零搭建 Coding Agent 与前端
-              <span>Build a coding agent and its frontend from first principles.</span>
+              CodingGirl：带可视化工作流与超级 Trace 的 coding agent / AI IDE 原型
+              <span>目标是把模型的工作状态“变得可监督、可回放、可恢复”。</span>
             </h1>
-            <div class="dual-copy lead">
+            <div class="lead">
               <p>
-                这个仓库不是“把现成产品抄一遍”的展示页，而是一个教学性开源项目：一边用
-                Python 搭 agent core，一边用 React + Tauri 搭桌面前端，再把过程整理成可部署到
-                GitHub Pages 的文档站。
+                这套文档以“能用、能改、能继续迭代”为标准组织内容：先跑起来，再理解核心对象与工具语义，
+                然后再进入 P2/P3 的可生产化路线。
               </p>
-              <p>
-                This repository is not a showcase clone. It is an educational build log: a Python
-                agent core, a React + Tauri desktop frontend, and a static docs site that can be
-                shipped directly with GitHub Pages.
-              </p>
-            </div>
-            <div class="chip-row" style="margin-top: 1rem;">
-              <span class="chip accent">Python core</span>
-              <span class="chip teal">React + Tauri desktop</span>
-              <span class="chip">Static docs for GitHub Pages</span>
             </div>
             <div class="button-row" style="margin-top: 1.25rem;">
-              <a class="button-link primary" href="./getting-started.html">先跑起来 / Start fast</a>
-              <a class="button-link secondary" href="./architecture.html">看实现原理 / Study the system</a>
+              <a class="button-link primary" href="./getting-started.html">先跑起来</a>
+              <a class="button-link secondary" href="./architecture.html">理解架构</a>
+            </div>
+            <div class="chip-row" style="margin-top: 1rem;">
+              <span class="chip accent">Trace / 回放</span>
+              <span class="chip teal">工具边界与权限</span>
+              <span class="chip">桌面端工作流</span>
             </div>
           </article>
 
           <div class="stack">
             <article class="stat-card">
-              <div class="metric-label">Repository Snapshot / 仓库快照</div>
-              <div class="metric-value">2026-03-09</div>
+              <div class="metric-label">仓库结构</div>
               <div class="mini-copy">
-                <p>文档内容基于当前仓库源码，而不是早期设想稿。</p>
-                <p>The docs are grounded in the current codebase, not older planning notes.</p>
+                <p><code>codinggirl/</code>：Python core（工具、workspace、sqlite、indexer、CLI）。</p>
+                <p><code>apps/desktop/</code>：React + Tauri 桌面端（工作流、审批、trace 等 UI 原型）。</p>
               </div>
             </article>
             <article class="stat-card">
-              <div class="metric-label">What Is Real / 真实边界</div>
+              <div class="metric-label">当前主线</div>
               <div class="mini-copy">
-                <p>Python 侧已经有 contracts、workspace sandbox、patch、sqlite、indexer、CLI 与 Telegram 模拟入口。</p>
-                <p>The Python side already ships contracts, a workspace sandbox, patching, sqlite storage, indexing, a CLI, and a Telegram simulator.</p>
+                <p>工具层已具备“读/搜/改/索引/执行”的可用形态，P2/P3 正在并行收口。</p>
+                <p>最新执行清单：<code>TODO.md</code>。</p>
               </div>
             </article>
             <article class="stat-card">
-              <div class="metric-label">What Is Still Split / 尚未统一</div>
+              <div class="metric-label">开发约束</div>
               <div class="mini-copy">
-                <p>桌面端已经很像产品，但它和 Python core 还不是同一个运行时。</p>
-                <p>The desktop app already feels product-like, but it is not yet the same runtime as the Python core.</p>
-              </div>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section" id="lanes">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Five Lanes</div>
-              <h2>文档入口一眼看完<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Five reading lanes for different goals.</span></h2>
-            </div>
-            <p class="section-note">
-              你要求的 5 个分栏都在这里，主页负责导航，其他页面负责深入。<br>
-              All five requested lanes live here. The landing page navigates; the other pages go deep.
-            </p>
-          </div>
-          <div class="lane-grid">
-            <a class="lane-card" href="./index.html">
-              <span class="lane-index">01</span>
-              <h3>指引 / Guide</h3>
-              <p>先判断这个项目讲什么、做到哪一步、该从哪一页开始读。</p>
-              <p>Decide what the project is, what is already implemented, and where to start.</p>
-              <p>当前所在页 / You are here</p>
-            </a>
-            <a class="lane-card" href="./roadmap.html">
-              <span class="lane-index">02</span>
-              <h3>使用教程 / Tutorial</h3>
-              <p>按“如何用仓库里的现有能力”来读，包括 Python 路线和桌面路线。</p>
-              <p>Learn how to use the current capabilities through both the Python path and the desktop path.</p>
-              <p>去看操作路径 / Learn the workflow</p>
-            </a>
-            <a class="lane-card" href="./getting-started.html">
-              <span class="lane-index">03</span>
-              <h3>快速开始 / Quick Start</h3>
-              <p>保留最短命令链，适合先把项目跑通，再回头理解细节。</p>
-              <p>Use the shortest command path to get the project running before studying the details.</p>
-              <p>直接开跑 / Run the repo</p>
-            </a>
-            <a class="lane-card" href="./architecture.html">
-              <span class="lane-index">04</span>
-              <h3>从零开始 / From Scratch</h3>
-              <p>不是面向小白的字面教程，而是从对象模型、运行时、前端到具体实现的完整拆解。</p>
-              <p>Not a literal beginner tutorial, but a full dissection of objects, runtime, frontend, and implementation choices.</p>
-              <p>进入深水区 / Go deep</p>
-            </a>
-            <a class="lane-card" href="./papers.html">
-              <span class="lane-index">05</span>
-              <h3>论文 / Papers</h3>
-              <p>先占位，后续再整理学术材料与延伸阅读。</p>
-              <p>Reserved for future papers and research references.</p>
-              <p>暂时留白 / Placeholder</p>
-            </a>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Repository Map</div>
-              <h2>这个仓库到底在做什么<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">What this repository is actually building.</span></h2>
-            </div>
-          </div>
-          <div class="cards-grid three">
-            <article class="panel">
-              <h3>Python Agent Core</h3>
-              <div class="mini-copy">
-                <p>核心在 <code>codinggirl/</code>，以 dataclass contracts、workspace sandbox、tool runner、sqlite trace、manifest/symbols/repo_map 为主。</p>
-                <p>The core lives in <code>codinggirl/</code>, centered on dataclass contracts, a workspace sandbox, a tool runner, sqlite trace storage, and manifest/symbols/repo-map indexing.</p>
-              </div>
-            </article>
-            <article class="panel">
-              <h3>Desktop Frontend + Native Shell</h3>
-              <div class="mini-copy">
-                <p><code>apps/desktop/</code> 不只是 UI。它已经包含 session store、timeline、diff、artifacts、approval、terminal 与 Tauri 命令层。</p>
-                <p><code>apps/desktop/</code> is more than UI. It already includes a session store, timeline, diff and artifact views, approvals, a terminal panel, and a Tauri command layer.</p>
-              </div>
-            </article>
-            <article class="panel">
-              <h3>Static Docs for GitHub Pages</h3>
-              <div class="mini-copy">
-                <p><code>docs/</code> 是纯静态 HTML + CSS + 少量 JS，不依赖文档框架，直接适配 GitHub Pages。</p>
-                <p><code>docs/</code> is plain HTML + CSS + a tiny amount of JavaScript, with no docs framework dependency, so it works directly on GitHub Pages.</p>
+                <p>单文件尽量不超过 <code>800</code> 行；达到 <code>1000</code> 行必须拆分。</p>
+                <p>前后端要同步推进：后端能力必须能在 UI 或用户路径里被消费。</p>
               </div>
             </article>
           </div>
@@ -193,30 +93,22 @@
         <div class="container">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Read This First</div>
-              <h2>建议阅读顺序<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Recommended reading order.</span></h2>
+              <div class="section-kicker">上手路线</div>
+              <h2>建议阅读与运行顺序</h2>
             </div>
           </div>
           <ol class="flow-list">
             <li class="flow-step">
-              <strong>1. 主页先定边界 / Start with the landing page.</strong>
-              <span>先知道哪些能力已经落地，哪些仍然只是原型拼装。</span>
-              <span>First learn which capabilities are implemented and which are still prototype-grade.</span>
+              <strong>1) 快速开始</strong>
+              <span>跑通 Python core 与桌面端启动方式，确认环境与依赖没问题。</span>
             </li>
             <li class="flow-step">
-              <strong>2. 快速开始跑命令 / Run the quick start commands.</strong>
-              <span>用最短路径验证 Python core、桌面端和 Pages 部署方式。</span>
-              <span>Use the shortest path to validate the Python core, the desktop app, and the Pages deployment model.</span>
+              <strong>2) 使用与工作流</strong>
+              <span>理解 run / tool / diff / approval / artifact 在 UI 里怎么呈现。</span>
             </li>
             <li class="flow-step">
-              <strong>3. 使用教程看体验路径 / Read the tutorial for actual usage.</strong>
-              <span>重点看“应该如何体验这个仓库”而不是只看目录说明。</span>
-              <span>Focus on how the repository should be used, not just how the folders are named.</span>
-            </li>
-            <li class="flow-step">
-              <strong>4. 从零开始页看系统设计 / Use the deep dive to study the design.</strong>
-              <span>那里会把 contracts、runtime、frontend、turn/event 模型和当前裂缝都拆开讲。</span>
-              <span>That page breaks down contracts, runtime design, frontend layers, the turn/event model, and the current architectural gaps.</span>
+              <strong>3) 架构与代码导览</strong>
+              <span>从对象模型与工具边界入手，再看 indexer、repo map 与 runtime 事件。</span>
             </li>
           </ol>
         </div>
@@ -226,110 +118,32 @@
         <div class="container">
           <div class="section-head">
             <div>
-              <div class="section-kicker">Reality Check</div>
-              <h2>已经实现什么，尚缺什么<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">What exists already, and what is still missing.</span></h2>
+              <div class="section-kicker">贡献方式</div>
+              <h2>如何让改动有价值</h2>
             </div>
           </div>
-          <div class="cards-grid two">
+          <div class="cards-grid three">
             <article class="panel">
-              <h3>当前已经落地 / Implemented now</h3>
+              <h3>优先改“成功率”</h3>
               <ul class="check-list">
-                <li>Python dataclass contracts: <code>Task</code>, <code>Plan</code>, <code>ToolCall</code>, <code>ToolResult</code>, <code>Event</code>.</li>
-                <li>安全文件边界：<code>RepoWorkspace</code> 拒绝绝对路径与越界访问。</li>
-                <li>Unified diff patch 应用、备份、冲突拒绝与校验。</li>
-                <li>SQLite 运行记录、tool_call/event 记录链。</li>
-                <li>Python indexer：manifest、symbols.sqlite、repo_map。</li>
-                <li>桌面端 session、timeline、diff、artifact、approval、terminal、trace export。</li>
+                <li>工具参数校验、失败恢复、可回放证据链。</li>
+                <li>减少脏 diff（CRLF/LF、patch 稳定格式）。</li>
               </ul>
             </article>
             <article class="panel">
-              <h3>当前仍是裂缝 / Still a split system</h3>
+              <h3>优先改“可解释性”</h3>
               <ul class="check-list">
-                <li>Python orchestrator 仍然很窄，目前只覆盖 replace-style 目标格式。</li>
-                <li>Desktop runtime 与 Python runtime 还没有统一成一个 canonical engine。</li>
-                <li>上下文压缩、resume、fork、replay 只在桌面端形成了部分雏形。</li>
-                <li>索引能力主要偏向 Python，尚未真正统一覆盖 TypeScript / Rust 主工作流。</li>
-                <li>“像产品一样工作”的体验已出现，但底层运行语义还没有完全统一。</li>
+                <li>事件语义单一事实源，UI 只做投影。</li>
+                <li>关键失败要能定位、能复现、能恢复。</li>
               </ul>
             </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">GitHub Pages</div>
-              <h2>部署方式很简单<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Deployment stays intentionally simple.</span></h2>
-            </div>
-          </div>
-          <div class="cards-grid two">
-            <article class="callout">
-              <h3>为什么适合 Pages / Why Pages fits</h3>
-              <div class="mini-copy">
-                <p>这套文档不依赖 Jekyll、VitePress 或 Docusaurus。只要 GitHub 能托管静态文件，它就能发布。</p>
-                <p>The docs do not depend on Jekyll, VitePress, or Docusaurus. If GitHub can host static files, the site can ship.</p>
-              </div>
+            <article class="panel">
+              <h3>同步前端适配</h3>
+              <ul class="check-list">
+                <li>新增工具/索引能力要有 UI 入口或可见面板。</li>
+                <li>避免“后端很强，但用户用不到”。</li>
+              </ul>
             </article>
-            <article class="callout">
-              <h3>最小发布步骤 / Minimal publishing steps</h3>
-              <ol class="soft-list">
-                <li>把仓库推到 GitHub。</li>
-                <li>在仓库设置中启用 GitHub Pages。</li>
-                <li>Source 选择当前分支的 <code>/docs</code> 目录。</li>
-                <li>首页入口就是 <code>docs/index.html</code>。</li>
-              </ol>
-            </article>
-          </div>
-        </div>
-      </section>
-
-      <section class="section">
-        <div class="container">
-          <div class="section-head">
-            <div>
-              <div class="section-kicker">Directory Guide</div>
-              <h2>关键目录说明<span style="display:block; font-size:0.5em; margin-top:0.45rem; color:var(--text-soft); font-weight:600;">Meaning of the key top-level directories.</span></h2>
-            </div>
-          </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>路径 / Path</th>
-                  <th>角色 / Role</th>
-                  <th>如何理解 / How to read it</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td><code>codinggirl/</code></td>
-                  <td>Python core</td>
-                  <td>最接近“可复用 agent engine”的部分。Start here if you care about the core runtime.</td>
-                </tr>
-                <tr>
-                  <td><code>apps/desktop/</code></td>
-                  <td>Desktop prototype</td>
-                  <td>最接近“产品体验”的部分。Start here if you care about UX, approvals, timeline, and desktop workflow.</td>
-                </tr>
-                <tr>
-                  <td><code>tests/</code></td>
-                  <td>Python tests</td>
-                  <td>覆盖 workspace、patch、sqlite、indexer、policy、adapter 等基础链路。</td>
-                </tr>
-                <tr>
-                  <td><code>docs/</code></td>
-                  <td>Public docs</td>
-                  <td>对外展示与 GitHub Pages 部署入口；现在这套页面就是事实基线。</td>
-                </tr>
-                <tr>
-                  <td><code>tmp/</code></td>
-                  <td>Reference only</td>
-                  <td>上游参考区，不是当前项目主线，不应该在这里继续做功能改动。</td>
-                </tr>
-              </tbody>
-            </table>
           </div>
         </div>
       </section>
@@ -338,21 +152,15 @@
     <footer class="site-footer">
       <div class="container footer-shell">
         <div>
-          <p class="footer-title">Coding Agent Implementation from Scratch</p>
-          <p class="muted">教学性开源项目 / Educational open-source project</p>
+          <p class="footer-title">CodingGirl Docs</p>
+          <p class="muted">建议从“快速开始”进入。</p>
         </div>
         <div class="footer-links">
-          <a class="link-strong" href="./README.md">文档索引 / Docs index</a>
-          <a
-            class="link-strong"
-            href="https://github.com/WEP-56/Coding_agent-Implementation-from-Scratch"
-            target="_blank"
-            rel="noreferrer"
-          >
-            仓库地址 / Repository
-          </a>
+          <a class="link-strong" href="./getting-started.html">快速开始</a>
+          <a class="link-strong" href="./README.md">文档索引</a>
         </div>
       </div>
     </footer>
   </body>
 </html>
+

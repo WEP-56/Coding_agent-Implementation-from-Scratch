@@ -1,19 +1,31 @@
-# CodingGirl Engineering Standards
+# 开发规范（面向贡献者）
 
-## File Size Rule (Mandatory)
+这份规范用于减少“能跑但不稳”的改动，优先保证：稳定性、可回放、可恢复、可解释。
 
-- Preferred: **single file < 800 lines**
-- Hard limit: **if a file reaches 1000 lines, it MUST be refactored/split immediately**
+## 约束
 
-### Split Guidance
+- 单文件尽量不超过 `800` 行；达到 `1000` 行必须拆分。
+- 改动要尽量小、聚焦一个闭环，不要顺手重构无关部分。
+- 工具层的输出要可结构化消费（UI / trace / replay），避免只返回一段字符串。
 
-- Split by responsibility/domain, not arbitrary chunks.
-- Keep stable external API surface (function names/command names) when splitting.
-- Create an orchestrator/index file for module wiring when needed.
-- Add/adjust tests or verification commands after split to ensure no behavior regression.
+## 工具与边界
 
-### Review Checklist
+- 所有文件操作必须 repo-scoped，禁止绝对路径与路径逃逸。
+- mutation 必须可审查与可回滚：
+  - patch/replace/write/insert 都要进入统一证据链。
+  - Windows 仓库需保留 CRLF/LF，避免制造脏 diff。
 
-- [ ] Any touched file > 800 lines? If yes, justify and plan split.
-- [ ] Any file >= 1000 lines? If yes, split in the same work item (blocking requirement).
-- [ ] Build/lint/tests pass after split.
+## 事件与回放
+
+- 优先让 UI 从 canonical events 投影状态，而不是 UI 自己维护第二份状态。
+- 任何失败都要能被定位并复现：
+  - 结构化错误信息（冲突、权限、超时等）
+  - 保留必要的上下文片段（snippet/range）
+
+## 前后端同步
+
+- 新增后端能力后，必须至少完成其中一种“用户可用”落点：
+  - 桌面端新增入口/面板；或
+  - 现有面板可见（tools/trace/workflow）并可解释；或
+  - CLI 提供稳定命令路径并在文档里写清楚。
+
