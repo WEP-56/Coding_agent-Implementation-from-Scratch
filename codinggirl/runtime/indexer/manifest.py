@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from dataclasses import dataclass
+from fnmatch import fnmatchcase
 from pathlib import Path
 
 from codinggirl.runtime.workspace import RepoWorkspace
@@ -47,6 +48,18 @@ def _is_ignored(rel: str) -> bool:
         return True
     ignored_suffix = {".pyc", ".pyo", ".log", ".sqlite3"}
     return any(rel.endswith(s) for s in ignored_suffix)
+
+
+def _normalize_ignore_patterns(patterns: list[str]) -> list[str]:
+    out: list[str] = []
+    for pat in patterns:
+        normalized = str(pat).replace("\\", "/")
+        out.append(normalized)
+        if normalized.startswith("./"):
+            out.append(normalized[2:])
+        if normalized.startswith("**/"):
+            out.append(normalized[3:])
+    return list(dict.fromkeys(out))
 
 
 @dataclass(frozen=True, slots=True)
@@ -98,16 +111,25 @@ def scan_manifest(
     *,
     previous: dict[str, ManifestEntry] | None = None,
     max_file_size: int = 1_000_000,
+    ignore: list[str] | None = None,
+    use_default_ignore: bool = True,
 ) -> tuple[dict[str, ManifestEntry], list[str], list[str], list[str]]:
     """Return (entries, added, changed, removed)."""
     prev = previous or {}
     entries: dict[str, ManifestEntry] = {}
 
+    ignore_patterns: list[str] = []
+    if use_default_ignore:
+        ignore_patterns.extend(workspace.default_ignore_patterns())
+    if ignore:
+        ignore_patterns.extend(ignore)
+    ignore_patterns = _normalize_ignore_patterns(ignore_patterns)
+
     for p in workspace.root.rglob("*"):
         if not p.is_file():
             continue
         rel = str(p.relative_to(workspace.root)).replace("\\", "/")
-        if _is_ignored(rel):
+        if ignore_patterns and any(fnmatchcase(rel, pat) for pat in ignore_patterns):
             continue
         stat = p.stat()
         if stat.st_size > max_file_size:

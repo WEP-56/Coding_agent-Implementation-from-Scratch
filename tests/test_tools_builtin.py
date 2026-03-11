@@ -108,3 +108,45 @@ def test_toolrunner_fs_read_many_files(tmp_path: Path):
     assert items[2]["total_lines"] == 60_000
     assert items[3]["path"] == "missing.txt"
     assert items[3]["ok"] is False
+
+
+def test_toolrunner_fs_list_files(tmp_path: Path):
+    ws = RepoWorkspace.from_path(tmp_path)
+    ws.write_text("a/a.txt", "one\n")
+    ws.write_text("a/b.txt", "two\n")
+    ws.write_text("b/c.txt", "three\n")
+
+    reg = create_default_registry(ws)
+    store = SQLiteStore(tmp_path / "db.sqlite3")
+    store.init_schema()
+    run_id = uuid.uuid4().hex
+    store.create_run(run_id, created_at=utc_now_iso(), metadata={})
+    runner = ToolRunner(registry=reg, store=store, run_id=run_id)
+
+    res = runner.call("fs_list_files", {"path": ".", "recursive": True, "ignore": ["**/b/**"]})
+    assert res.ok is True
+    items = (res.content or {}).get("items", [])
+    paths = {x.get("path") for x in items}
+    assert "a/a.txt" in paths
+    assert "a/b.txt" in paths
+    assert "b/c.txt" not in paths
+
+
+def test_toolrunner_fs_glob_supports_ignore(tmp_path: Path):
+    ws = RepoWorkspace.from_path(tmp_path)
+    ws.write_text("a/a.txt", "one\n")
+    ws.write_text("b/b.txt", "two\n")
+
+    reg = create_default_registry(ws)
+    store = SQLiteStore(tmp_path / "db.sqlite3")
+    store.init_schema()
+    run_id = uuid.uuid4().hex
+    store.create_run(run_id, created_at=utc_now_iso(), metadata={})
+    runner = ToolRunner(registry=reg, store=store, run_id=run_id)
+
+    res = runner.call("fs_glob", {"pattern": "**/*.txt", "ignore": ["b/**"]})
+    assert res.ok is True
+    items = (res.content or {}).get("items", [])
+    paths = {x.get("path") for x in items}
+    assert "a/a.txt" in paths
+    assert "b/b.txt" not in paths

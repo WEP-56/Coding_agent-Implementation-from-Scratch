@@ -15,6 +15,37 @@ def make_fs_list_dir(workspace: RepoWorkspace):
     return handler
 
 
+def make_fs_list_files(workspace: RepoWorkspace):
+    def handler(call: ToolCall) -> ToolResult:
+        path = str(call.args.get("path", "."))
+        recursive = bool(call.args.get("recursive", True))
+        include_dirs = bool(call.args.get("include_dirs", False))
+        ignore_arg = call.args.get("ignore")
+        ignore: list[str] = [str(x) for x in ignore_arg] if isinstance(ignore_arg, list) else ([str(ignore_arg)] if ignore_arg else [])
+        use_default_ignore = bool(call.args.get("use_default_ignore", True))
+        if use_default_ignore:
+            ignore = list(dict.fromkeys(workspace.default_ignore_patterns() + ignore))
+        max_results = int(call.args.get("max_results", 20_000))
+        if max_results <= 0:
+            max_results = 1
+
+        items = workspace.list_files(
+            path,
+            recursive=recursive,
+            include_dirs=include_dirs,
+            ignore=ignore,
+            max_results=max_results,
+        )
+        return ToolResult(
+            call_id=call.call_id,
+            tool_name=call.tool_name,
+            ok=True,
+            content={"path": path, "recursive": recursive, "include_dirs": include_dirs, "items": items},
+        )
+
+    return handler
+
+
 def make_fs_read_file(workspace: RepoWorkspace):
     def handler(call: ToolCall) -> ToolResult:
         path = str(call.args["path"])
@@ -46,7 +77,12 @@ def make_fs_glob(workspace: RepoWorkspace):
         path = str(call.args.get("path", "."))
         recursive = bool(call.args.get("recursive", True))
         include_dirs = bool(call.args.get("include_dirs", False))
-        items = workspace.glob(pattern, path=path, recursive=recursive, include_dirs=include_dirs)
+        ignore_arg = call.args.get("ignore")
+        ignore: list[str] = [str(x) for x in ignore_arg] if isinstance(ignore_arg, list) else ([str(ignore_arg)] if ignore_arg else [])
+        use_default_ignore = bool(call.args.get("use_default_ignore", True))
+        if use_default_ignore:
+            ignore = list(dict.fromkeys(workspace.default_ignore_patterns() + ignore))
+        items = workspace.glob(pattern, path=path, recursive=recursive, include_dirs=include_dirs, ignore=ignore)
         return ToolResult(
             call_id=call.call_id,
             tool_name=call.tool_name,

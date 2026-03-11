@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import ast
+import re
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -113,6 +114,91 @@ def extract_python_symbols(path: str, text: str) -> tuple[list[SymbolRecord], li
     return symbols, imports
 
 
+_TS_FUNC_RE = re.compile(r"^\s*(?:export\s+)?(?:default\s+)?(?:async\s+)?function\s+([A-Za-z_$][\w$]*)\s*\(")
+_TS_CLASS_RE = re.compile(r"^\s*(?:export\s+)?(?:default\s+)?class\s+([A-Za-z_$][\w$]*)\b")
+_TS_VAR_RE = re.compile(r"^\s*(?:export\s+)?(?:const|let|var)\s+([A-Za-z_$][\w$]*)\b")
+_TS_TYPELIKE_RE = re.compile(r"^\s*export\s+(interface|type|enum)\s+([A-Za-z_$][\w$]*)\b")
+_TS_IMPORT_FROM_RE = re.compile(r"^\s*import\s+.+?\s+from\s+['\"]([^'\"]+)['\"]")
+_TS_IMPORT_BARE_RE = re.compile(r"^\s*import\s+['\"]([^'\"]+)['\"]")
+_TS_REQUIRE_RE = re.compile(r"require\(\s*['\"]([^'\"]+)['\"]\s*\)")
+
+
+def extract_ts_js_symbols(path: str, text: str) -> tuple[list[SymbolRecord], list[ImportRecord]]:
+    symbols: list[SymbolRecord] = []
+    imports: list[ImportRecord] = []
+    for i, line in enumerate(text.splitlines(), start=1):
+        m = _TS_TYPELIKE_RE.match(line)
+        if m:
+            kind, name = m.group(1), m.group(2)
+            symbols.append(
+                SymbolRecord(
+                    path=path,
+                    name=name,
+                    kind=kind,
+                    line_start=i,
+                    line_end=None,
+                    signature=name,
+                )
+            )
+
+        m = _TS_CLASS_RE.match(line)
+        if m:
+            name = m.group(1)
+            symbols.append(
+                SymbolRecord(
+                    path=path,
+                    name=name,
+                    kind="class",
+                    line_start=i,
+                    line_end=None,
+                    signature=name,
+                )
+            )
+
+        m = _TS_FUNC_RE.match(line)
+        if m:
+            name = m.group(1)
+            signature = name
+            if "(" in line and ")" in line:
+                sig = line.strip()
+                signature = sig[:200]
+            symbols.append(
+                SymbolRecord(
+                    path=path,
+                    name=name,
+                    kind="function",
+                    line_start=i,
+                    line_end=None,
+                    signature=signature,
+                )
+            )
+
+        m = _TS_VAR_RE.match(line)
+        if m:
+            name = m.group(1)
+            symbols.append(
+                SymbolRecord(
+                    path=path,
+                    name=name,
+                    kind="variable",
+                    line_start=i,
+                    line_end=None,
+                    signature=name,
+                )
+            )
+
+        m = _TS_IMPORT_FROM_RE.match(line)
+        if m:
+            imports.append(ImportRecord(path=path, module=m.group(1), line=i))
+        m = _TS_IMPORT_BARE_RE.match(line)
+        if m:
+            imports.append(ImportRecord(path=path, module=m.group(1), line=i))
+        for req in _TS_REQUIRE_RE.findall(line):
+            imports.append(ImportRecord(path=path, module=req, line=i))
+
+    return symbols, imports
+
+
 def open_symbols_db(db_path: Path) -> sqlite3.Connection:
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
@@ -156,11 +242,32 @@ def index_changed_python_files(
     changed_files: list[str],
     removed_files: list[str],
 ) -> None:
+    index_changed_source_files(
+        workspace,
+        conn=conn,
+        changed_files=changed_files,
+        removed_files=removed_files,
+    )
+
+
+def index_changed_source_files(
+    workspace: RepoWorkspace,
+    *,
+    conn: sqlite3.Connection,
+    changed_files: list[str],
+    removed_files: list[str],
+    max_bytes: int = 1_000_000,
+) -> None:
     for rel in removed_files:
         delete_file_symbols(conn, rel)
     for rel in changed_files:
-        if not rel.endswith(".py"):
+        low = rel.lower()
+        if low.endswith(".py"):
+            text = workspace.read_text(rel, max_bytes=max_bytes)
+            syms, imps = extract_python_symbols(rel, text)
+            upsert_file_symbols(conn, path=rel, symbols=syms, imports=imps)
             continue
-        text = workspace.read_text(rel)
-        syms, imps = extract_python_symbols(rel, text)
-        upsert_file_symbols(conn, path=rel, symbols=syms, imports=imps)
+        if low.endswith((".ts", ".tsx", ".js", ".jsx")):
+            text = workspace.read_text(rel, max_bytes=max_bytes)
+            syms, imps = extract_ts_js_symbols(rel, text)
+            upsert_file_symbols(conn, path=rel, symbols=syms, imports=imps)

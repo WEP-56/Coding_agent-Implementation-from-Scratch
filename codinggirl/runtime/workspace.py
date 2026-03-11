@@ -57,6 +57,27 @@ class RepoWorkspace:
             return "\n"
         return "\r\n" if b"\r\n" in sample else "\n"
 
+    def default_ignore_patterns(self) -> list[str]:
+        return [
+            "**/.git/**",
+            "**/.hg/**",
+            "**/.svn/**",
+            "**/.DS_Store",
+            "**/.venv/**",
+            "**/venv/**",
+            "**/node_modules/**",
+            "**/__pycache__/**",
+            "**/.pytest_cache/**",
+            "**/.codinggirl/**",
+            "**/tmp/**",
+            "**/*.pyc",
+            "**/*.pyo",
+            "**/*.log",
+            "**/*.sqlite3",
+            "**/*.sqlite3-wal",
+            "**/*.sqlite3-shm",
+        ]
+
     def read_text_range(
         self,
         rel_path: str,
@@ -240,11 +261,13 @@ class RepoWorkspace:
         path: str = ".",
         recursive: bool = True,
         include_dirs: bool = False,
+        ignore: list[str] | None = None,
     ) -> list[dict[str, object]]:
         base = self.resolve_path(path)
         if not base.exists() or not base.is_dir():
             raise WorkspaceError(f"dir not found: {path}")
 
+        ignore_patterns = self._normalize_ignore_patterns(ignore)
         iterator = base.rglob("*") if recursive else base.glob("*")
         results: list[dict[str, object]] = []
         normalized_pattern = pattern.replace("\\", "/")
@@ -254,6 +277,10 @@ class RepoWorkspace:
                 continue
             rel = str(entry.relative_to(self.root)).replace("\\", "/")
             rel_from_base = str(entry.relative_to(base)).replace("\\", "/")
+            if ignore_patterns and any(
+                fnmatchcase(rel, pat) or fnmatchcase(rel_from_base, pat) for pat in ignore_patterns
+            ):
+                continue
             if fnmatchcase(rel_from_base, normalized_pattern) or fnmatchcase(rel, normalized_pattern):
                 results.append(
                     {
@@ -306,3 +333,49 @@ class RepoWorkspace:
             suffix = "/" if child.is_dir() else ""
             out.append(child.name + suffix)
         return out
+
+    def list_files(
+        self,
+        rel_path: str = ".",
+        *,
+        recursive: bool = True,
+        include_dirs: bool = False,
+        ignore: list[str] | None = None,
+        max_results: int = 20_000,
+    ) -> list[dict[str, object]]:
+        base = self.resolve_path(rel_path)
+        if not base.exists() or not base.is_dir():
+            raise WorkspaceError(f"dir not found: {rel_path}")
+
+        ignore_patterns = self._normalize_ignore_patterns(ignore)
+        results: list[dict[str, object]] = []
+        iterator = base.rglob("*") if recursive else base.glob("*")
+
+        for entry in iterator:
+            rel = str(entry.relative_to(self.root)).replace("\\", "/")
+            rel_from_base = str(entry.relative_to(base)).replace("\\", "/")
+            if any(fnmatchcase(rel, pat) or fnmatchcase(rel_from_base, pat) for pat in ignore_patterns):
+                continue
+            if entry.is_dir():
+                if not include_dirs:
+                    continue
+                results.append({"path": rel, "type": "dir", "size": None})
+            elif entry.is_file():
+                results.append({"path": rel, "type": "file", "size": entry.stat().st_size})
+            if len(results) >= max_results:
+                break
+
+        results.sort(key=lambda item: str(item.get("path", "")).lower())
+        return results
+
+    def _normalize_ignore_patterns(self, ignore: list[str] | None) -> list[str]:
+        raw_ignore = ignore or []
+        ignore_patterns: list[str] = []
+        for pat in raw_ignore:
+            normalized = str(pat).replace("\\", "/")
+            ignore_patterns.append(normalized)
+            if normalized.startswith("./"):
+                ignore_patterns.append(normalized[2:])
+            if normalized.startswith("**/"):
+                ignore_patterns.append(normalized[3:])
+        return ignore_patterns

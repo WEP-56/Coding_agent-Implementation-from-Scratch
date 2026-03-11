@@ -11,11 +11,12 @@ from codinggirl.adapters.telegram.session_store import TelegramSessionStore
 from codinggirl.runtime.defaults import create_default_registry
 from codinggirl.runtime.indexer.manifest import load_manifest, save_manifest, scan_manifest
 from codinggirl.runtime.indexer.repo_map import build_repo_map_items, render_repo_map
-from codinggirl.runtime.indexer.symbols import index_changed_python_files, open_symbols_db
+from codinggirl.runtime.indexer.symbols import index_changed_source_files, open_symbols_db
 from codinggirl.runtime.llm_adapter import ChatMessage, LLMConfig, ToolSchema, create_llm_provider
 from codinggirl.runtime.storage_sqlite import SQLiteStore
 from codinggirl.runtime.tools.runner import ToolRunner
 from codinggirl.runtime.workspace import RepoWorkspace
+from codinggirl.core.policy import PermissionPolicy
 
 
 def _default_db_path() -> Path:
@@ -39,7 +40,7 @@ def cmd_run(args: argparse.Namespace) -> int:
 
     ws = RepoWorkspace.from_path(args.repo)
     registry = create_default_registry(ws)
-    runner = ToolRunner(registry=registry, store=store, run_id=run_id)
+    runner = ToolRunner(registry=registry, store=store, run_id=run_id, permission=PermissionPolicy(mode="readonly"))
 
     if args.ls:
         res = runner.call("fs_list_dir", {"path": "."})
@@ -67,7 +68,7 @@ def cmd_index(args: argparse.Namespace) -> int:
     changed_all = sorted(set(added + changed))
     conn = open_symbols_db(symbols_path)
     try:
-        index_changed_python_files(
+        index_changed_source_files(
             ws,
             conn=conn,
             changed_files=changed_all,

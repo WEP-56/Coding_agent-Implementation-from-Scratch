@@ -1,8 +1,30 @@
 # CodingGirl
 
-CodingGirl 是一个正在持续向 Codex / OpenCode 方向推进的 coding agent 项目。
+CodingGirl 是一个正在持续向 Codex / OpenCode /Gemini cli /Claude code 方向推进的 coding agent 项目，但开发的重点并非向这些优秀项目对齐，而是制作一个有超级trace与模型工作流可视化的agent、ai ide，以更好的监督模型工作状态，甚至在未来，直接针对工作流内的某一处工作给出针对性指挥意见。
 
-这个仓库当前不是“做很多表面功能”的阶段，重点在把 runtime、context lifecycle、feedback grammar、diff provenance、approval、rollback 这些底层能力收紧成一个稳定系统。
+这个项目目前在能力较强的模型情况下（如GPT5以上、Gemini3以上、Claude、，已经可以胜任中小型项目的制作。
+
+当前正在推进的任务，请查看：TODO.md
+
+## 实时统计（各模块代码行数）
+```text
+模块                         文件数  行数
+智能体模块                      42  4293
+测试、验证模块                  10   759
+前端界面                        43  8492
+桌面壳/后端                     22 10941
+文档（包含pages）                8  1551
+```
+生成命令：`py scripts/loc.py`
+```text
+root                         files lines
+codinggirl                      42  4293
+tests                           10   759
+apps/desktop/src                43  8492
+apps/desktop/src-tauri/src      22 10941
+docs                             8  1551
+```
+
 
 ## 它现在是什么
 
@@ -99,7 +121,7 @@ npm install
 npm run dev
 ```
 
-### 3. Desktop Tauri Shell
+### 3. Desktop Tauri Shell （最完善，推荐）
 
 要求：
 
@@ -124,19 +146,20 @@ npm run tauri build
 ## 常用验证命令
 
 ```bash
+在制作时产出了很多测试/验证脚本，但更推荐使用这个
 py -m pytest
 cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
 cd apps/desktop && npm run build
 ```
 
-如果你正在推进 runtime 主线，这三个通常都应该过。
+
 
 ## 开发约束
 
 - `docs/` 是主文档入口。
-- 前后端要同步推进，不能只改后端不适配前端。
+- 前后端同步推进，不能只改后端不适配前端。
 - 单文件尽量不要超过 `800` 行；超过 `1000` 行必须拆分。
-- 优先拉近本项目与 Codex / OpenCode 在 runtime / context / feedback 上的距离。
+- 优先拉近本项目与 Codex / OpenCode 在 runtime / context / feedback 上的距离，然后继续强化trace。
 - 不要在 runtime 还没稳定时继续堆表面功能。
 
 ## 现在已经有的方向性成果
@@ -155,6 +178,7 @@ cd apps/desktop && npm run build
 - 这个仓库目前仍处在快速演进阶段。
 - 它已经不是“只能演示”的玩具，但还不是可以直接对外发布的产品。
 - 继续开发守则：最有价值的工作通常不是“再加一个按钮”，而是继续减少状态漂移、减少隐式行为、减少前后端语义不一致。
+- 欢迎您贡献代码或观点，无论是手工制作还是ai产出，有效的就是最好的
 
 ## 许可证
 

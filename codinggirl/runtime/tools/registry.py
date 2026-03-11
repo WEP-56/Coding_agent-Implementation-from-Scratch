@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any, Callable, Literal
 
 from codinggirl.core.contracts import ToolCall, ToolResult
 
 
 ToolHandler = Callable[[ToolCall], ToolResult]
+ToolPermission = Literal["read", "write", "exec"]
 
 
 @dataclass(frozen=True, slots=True)
@@ -15,6 +16,7 @@ class ToolSpec:
     description: str
     input_schema: dict[str, Any]
     risk_level: str = "low"
+    required_permission: ToolPermission = "read"
 
 
 class ToolRegistry:

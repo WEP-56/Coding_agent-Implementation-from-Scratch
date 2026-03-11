@@ -164,3 +164,19 @@ class SQLiteStore:
                 return None
             out = row["output_json"]
             return json.loads(out) if out else None
+
+    def get_tool_call_record(self, call_id: str) -> dict[str, Any] | None:
+        with self.connect() as conn:
+            row = conn.execute(
+                "SELECT status, output_json, error_json FROM tool_call WHERE call_id=?",
+                (call_id,),
+            ).fetchone()
+            if not row:
+                return None
+            out = row["output_json"]
+            err = row["error_json"]
+            return {
+                "status": str(row["status"]),
+                "output": json.loads(out) if out else None,
+                "error": json.loads(err) if err else None,
+            }

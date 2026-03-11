@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from codinggirl.core.coder import make_unified_diff_for_replace, parse_replace_goal
 from codinggirl.core.contracts import Task, utc_now_iso
+from codinggirl.core.policy import PermissionPolicy
 from codinggirl.core.planner import build_plan
 from codinggirl.core.reviewer import review_patch
 from codinggirl.core.state_machine import RunState
@@ -36,9 +37,9 @@ def execute_goal(*, repo_root: str, goal: str, db_path: str) -> OrchestratorResu
 
     ws = RepoWorkspace.from_path(repo_root)
     registry = create_default_registry(ws)
-    runner = ToolRunner(registry=registry, store=store, run_id=run_id)
 
     task = Task(task_id=run_id, goal=goal, repo_root=repo_root, mode="write", adapter="cli")
+    runner = ToolRunner(registry=registry, store=store, run_id=run_id, permission=PermissionPolicy(mode=task.mode))
 
     try:
         state.transition("PLANNED")

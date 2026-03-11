@@ -4,14 +4,13 @@ import re
 import sqlite3
 from dataclasses import dataclass
 from math import sqrt
-
-
 @dataclass(frozen=True, slots=True)
 class RepoMapItem:
     path: str
     name: str
     kind: str
     line_start: int
+    line_end: int | None
     signature: str | None
     score: int
 
@@ -73,7 +72,7 @@ def build_repo_map_items(
     focus = {x.strip().lower() for x in (focus_terms or set()) if x.strip()}
     cur = conn.cursor()
     rows = cur.execute(
-        "SELECT path,name,kind,line_start,signature FROM symbol"
+        "SELECT path,name,kind,line_start,line_end,signature FROM symbol"
     ).fetchall()
 
     items: list[RepoMapItem] = []
@@ -82,7 +81,8 @@ def build_repo_map_items(
         name = str(r[1])
         kind = str(r[2])
         line_start = int(r[3])
-        signature = r[4] if r[4] is None else str(r[4])
+        line_end = r[4] if r[4] is None else int(r[4])
+        signature = r[5] if r[5] is None else str(r[5])
 
         score = 0.0
         # lightweight ranking heuristics:
@@ -120,12 +120,95 @@ def build_repo_map_items(
                 name=name,
                 kind=kind,
                 line_start=line_start,
+                line_end=line_end,
                 signature=signature,
                 score=int(round(score)),
             )
         )
 
     items.sort(key=lambda x: (-x.score, x.path, x.line_start))
+    return items
+
+
+def query_repo_map_items(
+    conn: sqlite3.Connection,
+    *,
+    focus_terms: set[str] | None = None,
+    path_query: str | None = None,
+    name_query: str | None = None,
+    kinds: list[str] | None = None,
+    include_tests: bool = False,
+    max_results: int = 200,
+) -> list[RepoMapItem]:
+    import_counts = _fetch_import_counts(conn)
+    name_counts = _fetch_symbol_name_counts(conn)
+    focus = {x.strip().lower() for x in (focus_terms or set()) if x.strip()}
+    cur = conn.cursor()
+
+    clauses: list[str] = []
+    params: list[object] = []
+    if not include_tests:
+        clauses.append("path NOT LIKE 'tests/%'")
+    if path_query:
+        clauses.append("path LIKE ?")
+        params.append(f"%{path_query}%")
+    if name_query:
+        clauses.append("name LIKE ?")
+        params.append(f"%{name_query}%")
+    if kinds:
+        placeholders = ",".join("?" for _ in kinds)
+        clauses.append(f"kind IN ({placeholders})")
+        params.extend(kinds)
+
+    where = (" WHERE " + " AND ".join(clauses)) if clauses else ""
+    sql = f"SELECT path,name,kind,line_start,line_end,signature FROM symbol{where}"
+    rows = cur.execute(sql, params).fetchall()
+
+    def score_item(path: str, name: str, kind: str) -> int:
+        score = 0.0
+        score += sqrt(import_counts.get(path, 0)) * 6
+        score += name_counts.get(name, 0) * 2
+        if _is_structured_identifier(name) and len(name) >= 8:
+            score += 8
+        if name.startswith("_"):
+            score -= 4
+        if kind == "class":
+            score += 5
+        if "__init__" in path or path.endswith("main.py"):
+            score += 4
+        if _is_important_file(path):
+            score += 12
+        if focus:
+            path_terms = _path_components(path)
+            if path_terms & focus:
+                score += 20
+            if name.lower() in focus:
+                score += 20
+        return int(round(score))
+
+    items: list[RepoMapItem] = []
+    for r in rows:
+        path = str(r[0])
+        name = str(r[1])
+        kind = str(r[2])
+        line_start = int(r[3])
+        line_end = r[4] if r[4] is None else int(r[4])
+        signature = r[5] if r[5] is None else str(r[5])
+        items.append(
+            RepoMapItem(
+                path=path,
+                name=name,
+                kind=kind,
+                line_start=line_start,
+                line_end=line_end,
+                signature=signature,
+                score=score_item(path, name, kind),
+            )
+        )
+
+    items.sort(key=lambda x: (-x.score, x.path, x.line_start))
+    if max_results > 0:
+        return items[:max_results]
     return items
 
 

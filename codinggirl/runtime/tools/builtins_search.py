@@ -23,6 +23,19 @@ def _matches_globs(path_text: str, patterns: list[str]) -> bool:
     return any(fnmatchcase(normalized, pattern.replace("\\", "/")) for pattern in patterns)
 
 
+def _normalize_ignore_patterns(patterns: list[str]) -> list[str]:
+    out: list[str] = []
+    for pat in patterns:
+        normalized = str(pat).replace("\\", "/")
+        out.append(normalized)
+        if normalized.startswith("./"):
+            out.append(normalized[2:])
+        if normalized.startswith("**/"):
+            out.append(normalized[3:])
+    # Preserve order but drop duplicates
+    return list(dict.fromkeys(out))
+
+
 def _search_fallback(
     root: Path,
     pattern: str,
@@ -40,6 +53,7 @@ def _search_fallback(
     regex = _compile_pattern(pattern, literal=literal, case_sensitive=case_sensitive)
     results: list[dict[str, object]] = []
     include_patterns = include or ["**/*", "*"]
+    exclude_patterns = _normalize_ignore_patterns(exclude)
 
     for p in base.rglob("*"):
         if not p.is_file():
@@ -48,7 +62,7 @@ def _search_fallback(
         rel_from_base = str(p.relative_to(base)).replace("\\", "/")
         if include and not (_matches_globs(rel, include_patterns) or _matches_globs(rel_from_base, include_patterns)):
             continue
-        if exclude and (_matches_globs(rel, exclude) or _matches_globs(rel_from_base, exclude)):
+        if exclude_patterns and (_matches_globs(rel, exclude_patterns) or _matches_globs(rel_from_base, exclude_patterns)):
             continue
         if p.stat().st_size > 512_000:
             continue
@@ -88,6 +102,9 @@ def make_search_rg(workspace: RepoWorkspace):
         exclude_arg = call.args.get("exclude")
         include: list[str] = [str(x) for x in include_arg] if isinstance(include_arg, list) else ([str(include_arg)] if include_arg else [])
         exclude: list[str] = [str(x) for x in exclude_arg] if isinstance(exclude_arg, list) else ([str(exclude_arg)] if exclude_arg else [])
+        use_default_ignore = bool(call.args.get("use_default_ignore", True))
+        if use_default_ignore:
+            exclude = list(dict.fromkeys(workspace.default_ignore_patterns() + exclude))
         literal = bool(call.args.get("literal", False))
         case_sensitive = bool(call.args.get("case_sensitive", True))
         context_before = max(0, int(call.args.get("context_before", 0)))
