@@ -7,6 +7,7 @@ from typing import Any
 from codinggirl.core.contracts import Event, ToolCall, ToolResult, utc_now_iso
 from codinggirl.runtime.storage_sqlite import SQLiteStore
 from codinggirl.runtime.tools.registry import ToolRegistry
+from codinggirl.runtime.tools.schema_validation import SchemaValidationError, validate_object
 
 
 class ToolDenied(RuntimeError):
@@ -35,7 +36,17 @@ class ToolRunner:
         if call_id is None:
             call_id = uuid.uuid4().hex
 
-        call = ToolCall(call_id=call_id, tool_name=tool_name, args=dict(args))
+        # Validate tool args at the runner boundary so handlers can assume well-formed input.
+        spec = self.registry.get_spec(tool_name)
+        try:
+            validated = validate_object(spec.input_schema, dict(args)).value
+        except SchemaValidationError as e:
+            validated = None
+            validation_error = str(e)
+        else:
+            validation_error = None
+
+        call = ToolCall(call_id=call_id, tool_name=tool_name, args=validated if isinstance(validated, dict) else dict(args))
 
         if self.replay_only:
             out = self.store.get_tool_call_output(call.call_id)
@@ -67,11 +78,14 @@ class ToolRunner:
             payload={"call_id": call.call_id, "tool": tool_name, "args": call.args},
         )
 
-        handler = self.registry.get_handler(tool_name)
-        try:
-            res = handler(call)
-        except Exception as e:  # noqa: BLE001
-            res = ToolResult(call_id=call.call_id, tool_name=tool_name, ok=False, error=str(e))
+        if validation_error is not None:
+            res = ToolResult(call_id=call.call_id, tool_name=tool_name, ok=False, error=f"invalid args: {validation_error}")
+        else:
+            handler = self.registry.get_handler(tool_name)
+            try:
+                res = handler(call)
+            except Exception as e:  # noqa: BLE001
+                res = ToolResult(call_id=call.call_id, tool_name=tool_name, ok=False, error=str(e))
 
         self.store.record_tool_call_finish(
             call_id=call.call_id,
