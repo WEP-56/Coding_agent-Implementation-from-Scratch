@@ -58,7 +58,7 @@ docs                             8  1551
    再考虑 skills、shared continuity、team config、automation。
 
 
-## 文档入口
+## 文档入口（待完善）
 
 
 - [文档首页](./docs/index.html)
@@ -67,7 +67,7 @@ docs                             8  1551
 - [路线图](./docs/roadmap.html)
 - [Papers / 对标资料入口](./docs/papers.html)
 - [文档索引](./docs/README.md)
-- [内部执行清单](./docs/roadmap/codex-alignment-todo.md)
+- [执行清单](Todo.md)
 
 
 
@@ -78,8 +78,7 @@ apps/desktop/        React + Tauri 桌面端原型
 codinggirl/          Python agent core
 docs/                当前主文档入口
 tests/               Python 测试
-tmp/                 上游参考源码区（不要改）
-.codinggirl/         本地状态、memory、trace、artifacts、index
+tmp/                 上游参考源码区
 pyproject.toml       Python 包与 CLI 配置
 ```
 
