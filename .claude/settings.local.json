@@ -1,0 +1,24 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:learn-claude-agents.vercel.app)",
+      "Bash(py -m pytest tests/test_agent_loop.py -v)",
+      "Bash(py -m codinggirl.core.agent_loop_cli --goal \"List all Python files in the current directory and tell me how many there are\" --provider openai --model gpt-5.2-codex --base-url \"http://localhost:8317/V1\" --api-key \"sk-HuEFoUKqyZ24V9zUG\" --permission readonly --max-iterations 10)",
+      "Bash(py -m codinggirl.core.agent_loop_cli --goal \"List all Python files in the current directory and tell me how many there are\" --provider openai --model gpt-5.2-codex --base-url \"http://localhost:8317/v1\" --api-key \"sk-HuEFoUKqyZ24V9zUG\" --permission readonly --max-iterations 10)",
+      "Bash(curl -X POST \"http://localhost:8317/v1/chat/completions\" -H \"Content-Type: application/json\" -H \"Authorization: Bearer sk-HuEFoUKqyZ24V9zUG\" -d \"{\"\"model\"\":\"\"gpt-5.2-codex\"\",\"\"messages\"\":[{\"\"role\"\":\"\"user\"\",\"\"content\"\":\"\"Hello\"\"}]}\")",
+      "Bash(py tests/test_todo_write.py)",
+      "Bash(py -m codinggirl.core.agent_loop_with_todo_cli --goal \"Find all Python files in the codinggirl/core directory, count them, and tell me which file has the most lines of code\" --provider openai --model gpt-5.2-codex --base-url \"http://localhost:8317/v1\" --api-key \"sk-HuEFoUKqyZ24V9zUG\" --permission readonly --max-iterations 20)",
+      "Bash(py -m codinggirl.core.agent_loop_with_todo_cli --goal \"List all Python files in the codinggirl/core directory and count how many there are\" --provider openai --model gpt-5.2-codex --base-url \"http://localhost:8317/v1\" --api-key \"sk-HuEFoUKqyZ24V9zUG\" --permission readonly --max-iterations 10)",
+      "Bash(py tests/test_context_manager.py)",
+      "Bash(py -m codinggirl.core.agent_loop_with_context_cli --goal \"统计 codinggirl 目录下所有 Python 文件的总行数，并列出前 10 个最大的文件\" --repo \"e:/coding agent\" --provider openai --model gpt-5.2-codex --base-url http://localhost:8317/v1 --api-key sk-HuEFoUKqyZ24V9zUG --keep-recent 2 --token-threshold 10000)",
+      "Bash(sqlite3 .codinggirl/agent_loop_context.sqlite3 \"SELECT kind, ts, json_extract\\(payload, ''$.error''\\) as error FROM event WHERE run_id=''24dfe1211651495595faa561f66f104a'' AND kind IN \\(''llm_response'', ''loop_error'', ''tool_parse_error''\\) ORDER BY ts DESC LIMIT 5;\")",
+      "Bash(py -m codinggirl.core.agent_loop_with_context_cli --goal \"统计 codinggirl 目录下所有 Python 文件的总行数，并列出前 10 个最大的文件\" --repo \"e:/coding agent\" --provider openai --model gpt-5.2-codex --base-url http://localhost:8317/v1 --api-key sk-HuEFoUKqyZ24V9zUG --keep-recent 2 --token-threshold 80000 --permission exec --max-iterations 30)",
+      "Bash(py -m codinggirl.core.agent_loop_with_context_cli --goal \"找出 codinggirl/core 目录下的所有 Python 文件，并告诉我有多少个\" --repo \"e:/coding agent\" --provider openai --model gpt-5.2-codex --base-url http://localhost:8317/v1 --api-key sk-HuEFoUKqyZ24V9zUG --keep-recent 2 --token-threshold 20000 --permission readonly --max-iterations 15)",
+      "Bash(py -m pytest tests/test_subagent.py -v)",
+      "Bash(py -m pytest tests/test_skill_loader.py -v)",
+      "Bash(py -m pytest tests/test_background_manager.py -v)",
+      "Bash(py -m pytest tests/test_task_graph.py -v)",
+      "Bash(py -m pytest tests/test_event_bus.py -v)"
+    ]
+  }
+}

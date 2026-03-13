@@ -12,10 +12,30 @@ def _messages_to_payload(messages: list[ChatMessage]) -> list[dict[str, object]]
     out: list[dict[str, object]] = []
     for m in messages:
         item: dict[str, object] = {"role": m.role, "content": m.content}
-        if m.name:
-            item["name"] = m.name
-        if m.tool_call_id:
-            item["tool_call_id"] = m.tool_call_id
+
+        # tool 消息需要 tool_call_id，不需要 name
+        if m.role == "tool":
+            if m.tool_call_id:
+                item["tool_call_id"] = m.tool_call_id
+        elif m.role == "assistant":
+            # assistant 消息可能包含 tool_calls
+            if m.tool_calls:
+                item["tool_calls"] = [
+                    {
+                        "id": tc.id,
+                        "type": "function",
+                        "function": {
+                            "name": tc.name,
+                            "arguments": tc.arguments_json,
+                        },
+                    }
+                    for tc in m.tool_calls
+                ]
+        else:
+            # 其他消息可以有 name
+            if m.name:
+                item["name"] = m.name
+
         out.append(item)
     return out
 
@@ -93,7 +113,16 @@ class OpenAICompatibleProvider:
         temperature: float = 0.0,
     ) -> LLMResponse:
         base_url = self.config.base_url or "https://api.openai.com"
-        endpoint = base_url.rstrip("/") + "/v1/chat/completions"
+        base_url = base_url.rstrip("/")
+
+        # 智能构建 endpoint：如果 base_url 已经包含完整路径，直接使用
+        if base_url.endswith("/chat/completions"):
+            endpoint = base_url
+        elif base_url.endswith("/v1"):
+            endpoint = base_url + "/chat/completions"
+        else:
+            endpoint = base_url + "/v1/chat/completions"
+
         api_key = self.config.api_key or os.environ.get("OPENAI_API_KEY")
         if not api_key:
             raise ValueError("missing api key (config.api_key or OPENAI_API_KEY)")

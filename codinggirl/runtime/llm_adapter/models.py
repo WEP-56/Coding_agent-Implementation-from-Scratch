@@ -13,6 +13,7 @@ class ChatMessage:
     content: str
     name: str | None = None
     tool_call_id: str | None = None
+    tool_calls: list[ToolCall] | None = None  # 用于 assistant 消息包含工具调用
 
 
 @dataclass(frozen=True, slots=True)

@@ -54,11 +54,20 @@ CREATE TABLE IF NOT EXISTS event (
 """
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass
 class SQLiteStore:
     db_path: Path
+    _conn: sqlite3.Connection | None = None
 
     def connect(self) -> sqlite3.Connection:
+        # 对于内存数据库，复用同一个连接
+        if str(self.db_path) == ":memory:":
+            if self._conn is None:
+                self._conn = sqlite3.connect(":memory:", check_same_thread=False)
+                self._conn.row_factory = sqlite3.Row
+            return self._conn
+
+        # 对于文件数据库，每次创建新连接
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row

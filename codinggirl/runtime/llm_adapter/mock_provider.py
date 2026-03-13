@@ -1,14 +1,32 @@
 from __future__ import annotations
 
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from codinggirl.runtime.llm_adapter.models import ChatMessage, LLMConfig, LLMResponse, ToolCall, ToolSchema
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass
 class MockProvider:
+    """
+    Mock LLM Provider for testing
+
+    Supports two modes:
+    1. Deterministic mode: responds based on user input patterns
+    2. Scripted mode: returns pre-configured responses in sequence
+    """
     config: LLMConfig
+    _responses: list[LLMResponse] = field(default_factory=list, init=False)
+    _response_index: int = field(default=0, init=False)
+
+    def set_next_response(self, response: LLMResponse) -> None:
+        """Set a single response (clears previous responses)"""
+        self._responses = [response]
+        self._response_index = 0
+
+    def add_response(self, response: LLMResponse) -> None:
+        """Add a response to the queue"""
+        self._responses.append(response)
 
     def chat(
         self,
@@ -18,6 +36,23 @@ class MockProvider:
         temperature: float = 0.0,
     ) -> LLMResponse:
         _ = temperature
+
+        # If we have scripted responses, use them
+        if self._responses:
+            if self._response_index < len(self._responses):
+                response = self._responses[self._response_index]
+                self._response_index += 1
+                return response
+            # If we've exhausted responses, return a default stop response
+            return LLMResponse(
+                model=self.config.model,
+                content="No more scripted responses available.",
+                finish_reason="stop",
+                tool_calls=[],
+                raw={"provider": "mock"},
+            )
+
+        # Fallback to deterministic mode
         last_user = ""
         for m in reversed(messages):
             if m.role == "user":

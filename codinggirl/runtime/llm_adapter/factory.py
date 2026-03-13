@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from codinggirl.runtime.llm_adapter.anthropic_provider import AnthropicProvider
 from codinggirl.runtime.llm_adapter.base import LLMProvider
 from codinggirl.runtime.llm_adapter.mock_provider import MockProvider
 from codinggirl.runtime.llm_adapter.models import LLMConfig
@@ -12,4 +13,6 @@ def create_llm_provider(config: LLMConfig) -> LLMProvider:
         return MockProvider(config=config)
     if p in {"openai", "openai-compatible", "openai_compatible"}:
         return OpenAICompatibleProvider(config=config)
+    if p in {"anthropic", "claude"}:
+        return AnthropicProvider(config=config)
     raise ValueError(f"unsupported provider: {config.provider}")
