@@ -162,6 +162,8 @@ export function LeftSidebar({
                       {creatingSessionForRepo === repo.id ? (
                         <div className="rounded-md bg-card/50 p-2">
                           <input
+                            id={`new-session-title-${repo.id}`}
+                            name="new-session-title"
                             type="text"
                             value={newSessionTitle}
                             onChange={(e) => setNewSessionTitle(e.target.value)}

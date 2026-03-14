@@ -558,6 +558,39 @@ pub struct PluginItem {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PythonTodoStats {
+    pub total: i64,
+    pub pending: i64,
+    pub in_progress: i64,
+    pub completed: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PythonTodoItem {
+    pub step_id: String,
+    pub title: String,
+    pub status: String,
+    #[serde(default)]
+    pub active_form: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PythonTodoState {
+    pub updated_at: String,
+    pub stats: PythonTodoStats,
+    pub items: Vec<PythonTodoItem>,
+    #[serde(default)]
+    pub rendered: Option<String>,
+    #[serde(default)]
+    pub run_id: Option<String>,
+    #[serde(default)]
+    pub turn_id: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppData {
     pub repos: Vec<RepoItem>,
     pub sessions: Vec<SessionItem>,
@@ -575,6 +608,9 @@ pub struct AppData {
     pub tools: HashMap<String, Vec<ToolCallItem>>,
     pub logs: HashMap<String, Vec<LogItem>>,
     pub artifacts: HashMap<String, Vec<ArtifactItem>>,
+    #[serde(rename = "pythonTodos")]
+    #[serde(default)]
+    pub python_todos: HashMap<String, PythonTodoState>,
     #[serde(rename = "chatHistory")]
     pub chat_history: HashMap<String, Vec<ChatTurn>>,
     #[serde(rename = "chatSummary")]
@@ -923,6 +959,7 @@ impl Default for AppData {
             tools,
             logs,
             artifacts,
+            python_todos: HashMap::new(),
             chat_history: HashMap::new(),
             chat_summary: HashMap::new(),
             memories: HashMap::new(),

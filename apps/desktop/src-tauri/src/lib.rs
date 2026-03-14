@@ -26,6 +26,7 @@ pub fn run() {
             commands::get_artifacts,
             commands::get_approval_meta,
             commands::run_session_message,
+            commands::run_python_agent_message,
             commands::create_session,
             commands::delete_session,
             commands::update_session_mode,

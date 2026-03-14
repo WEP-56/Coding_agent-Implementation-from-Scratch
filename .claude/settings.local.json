@@ -18,7 +18,8 @@
       "Bash(py -m pytest tests/test_skill_loader.py -v)",
       "Bash(py -m pytest tests/test_background_manager.py -v)",
       "Bash(py -m pytest tests/test_task_graph.py -v)",
-      "Bash(py -m pytest tests/test_event_bus.py -v)"
+      "Bash(py -m pytest tests/test_event_bus.py -v)",
+      "Bash(git status:*)"
     ]
   }
 }

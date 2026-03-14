@@ -77,6 +77,46 @@ export interface SessionStateChangedEvent {
   changedAt: string;
 }
 
+export interface PythonTodoStats {
+  total: number;
+  pending: number;
+  inProgress: number;
+  completed: number;
+}
+
+export interface PythonTodoItem {
+  stepId: string;
+  title: string;
+  status: "pending" | "in_progress" | "completed";
+  activeForm?: string | null;
+}
+
+export interface PythonTodoState {
+  updatedAt: string;
+  stats: PythonTodoStats;
+  items: PythonTodoItem[];
+  rendered?: string | null;
+  runId?: string | null;
+  turnId?: string | null;
+}
+
+export interface SessionWorkflowSnapshotEvent {
+  sessionId: string;
+  reason: string;
+  runId?: string | null;
+  turnId?: string | null;
+  changedAt: string;
+  timeline: TimelineStep[];
+  diffFiles: DiffFile[];
+  toolCalls: ToolCallItem[];
+  logs: LogItem[];
+  artifacts: ArtifactItem[];
+  sessionRuns: SessionRun[];
+  sessionTurns: SessionTurn[];
+  pendingApprovals: ApprovalRequest[];
+  pythonTodo?: PythonTodoState | null;
+}
+
 export interface ContextBudgetStats {
   historyChars: number;
   summaryChars: number;

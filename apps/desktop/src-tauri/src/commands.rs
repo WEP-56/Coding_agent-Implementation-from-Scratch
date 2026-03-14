@@ -11,7 +11,9 @@ mod session_runtime;
 mod tauri_handlers;
 mod turn_manager;
 mod workspace_tools;
+mod python_agent;
 
 pub use session_runtime::*;
 pub use tauri_handlers::*;
 pub use workspace_tools::*;
+pub use python_agent::*;

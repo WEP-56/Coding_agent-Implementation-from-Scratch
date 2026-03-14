@@ -16,7 +16,7 @@ import {
   getLogs,
   getTimeline,
   getToolCalls,
-  listenSessionStateChanged,
+  listenSessionWorkflowSnapshot,
   listRepos as listReposRemote,
   listSessionRuns,
   listSessions,
@@ -24,7 +24,7 @@ import {
   openPathInExplorer,
   openPathInVscode,
   rollbackPatchArtifact,
-  runSessionMessage,
+  runPythonAgentMessage,
   updateSessionMode as updateSessionModeRemote,
 } from "../api/bridge";
 import {
@@ -34,7 +34,12 @@ import {
 import { useAppStore } from "../store/app-store";
 import { useSessionStore } from "../store/session-store";
 import { useUiStore } from "../store/ui-store";
-import type { SessionMode, SessionRun, SessionTurn } from "../types/models";
+import type {
+  PythonTodoState,
+  SessionMode,
+  SessionRun,
+  SessionTurn,
+} from "../types/models";
 
 export function WorkspacePageV3() {
   const { repos, currentRepoId, setRepos, setCurrentRepo } = useAppStore();
@@ -69,8 +74,8 @@ export function WorkspacePageV3() {
   const [terminalVisible, setTerminalVisible] = useState(false);
   const [sessionRuns, setSessionRuns] = useState<SessionRun[]>([]);
   const [sessionTurns, setSessionTurns] = useState<SessionTurn[]>([]);
+  const [pythonTodo, setPythonTodo] = useState<PythonTodoState | null>(null);
   const currentSessionIdRef = useRef<string | null>(currentSessionId);
-  const refreshTimerRef = useRef<number | null>(null);
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
   const currentRepo =
@@ -104,16 +109,6 @@ export function WorkspacePageV3() {
       },
     );
 
-  const scheduleWorkflowRefresh = (sessionId: string, delay = 80) => {
-    if (refreshTimerRef.current !== null) {
-      window.clearTimeout(refreshTimerRef.current);
-    }
-    refreshTimerRef.current = window.setTimeout(() => {
-      refreshTimerRef.current = null;
-      void refreshWorkflowState(sessionId).catch(() => undefined);
-    }, delay);
-  };
-
   useEffect(() => {
     currentSessionIdRef.current = currentSessionId;
   }, [currentSessionId]);
@@ -121,10 +116,17 @@ export function WorkspacePageV3() {
   useEffect(() => {
     let active = true;
     let dispose: (() => void) | null = null;
-    void listenSessionStateChanged((event) => {
+    void listenSessionWorkflowSnapshot((event) => {
       if (!active) return;
       if (event.sessionId !== currentSessionIdRef.current) return;
-      scheduleWorkflowRefresh(event.sessionId, 60);
+      setTimeline(event.timeline);
+      setDiffFiles(event.diffFiles);
+      setToolCalls(event.toolCalls);
+      setLogs(event.logs);
+      setArtifacts(event.artifacts);
+      setSessionRuns(event.sessionRuns);
+      setSessionTurns(event.sessionTurns);
+      setPythonTodo(event.pythonTodo ?? null);
     }).then((unlisten) => {
       if (!active) {
         unlisten();
@@ -135,10 +137,6 @@ export function WorkspacePageV3() {
     return () => {
       active = false;
       if (dispose) dispose();
-      if (refreshTimerRef.current !== null) {
-        window.clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
     };
   }, []);
 
@@ -252,6 +250,9 @@ export function WorkspacePageV3() {
     ensureRepo.then(() =>
       createSessionRemote(repoId, title, mode)
         .then((item) => {
+          if (item.repoId !== repoId) {
+            setCurrentRepo(item.repoId);
+          }
           setSessions([
             {
               id: item.id,
@@ -266,7 +267,7 @@ export function WorkspacePageV3() {
           setCurrentSession(item.id);
           appendMessage(item.id, "system", `已创建会话，模式：${mode}`);
           pushToast({ kind: "success", title: "会话已创建" });
-          listSessions(repoId)
+          listSessions(item.repoId)
             .then(setSessions)
             .catch(() => undefined);
         })
@@ -336,18 +337,15 @@ export function WorkspacePageV3() {
 
     appendMessage(currentSessionId, "user", text);
     setLoadingTimeline(true);
-    scheduleWorkflowRefresh(currentSessionId, 80);
 
-    runSessionMessage(currentSessionId, mode, text)
+    runPythonAgentMessage(currentSessionId, mode, text)
       .then((result) => {
         appendMessage(currentSessionId, "assistant", result.assistantMessage);
         setTimeline(result.timeline);
-        scheduleWorkflowRefresh(currentSessionId, 20);
       })
       .catch((e) => {
         appendMessage(currentSessionId, "system", `执行失败：${String(e)}`);
         pushToast({ kind: "error", title: "执行失败", message: String(e) });
-        scheduleWorkflowRefresh(currentSessionId, 20);
       })
       .finally(() => {
         setLoadingTimeline(false);
@@ -355,14 +353,10 @@ export function WorkspacePageV3() {
   };
 
   const handleTerminalCommandLifecycle = (
-    phase: "started" | "finished",
-    sessionId: string,
+    _phase: "started" | "finished",
+    _sessionId: string,
   ) => {
-    if (phase === "started") {
-      scheduleWorkflowRefresh(sessionId, 120);
-      return;
-    }
-    scheduleWorkflowRefresh(sessionId, 20);
+    // Kept for future: terminal runs also emit workflow snapshots via backend events.
   };
 
   const handleRollback = () => {
@@ -507,6 +501,7 @@ export function WorkspacePageV3() {
             artifacts={artifacts}
             sessionRuns={sessionRuns}
             sessionTurns={sessionTurns}
+            pythonTodo={pythonTodo}
             currentMode={currentSession?.mode ?? "build"}
             isRunning={isLoadingTimeline}
             onSend={handleSend}

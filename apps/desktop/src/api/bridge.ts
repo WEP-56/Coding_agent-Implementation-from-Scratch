@@ -12,6 +12,7 @@ import type {
   PluginItem,
   SessionItem,
   SessionStateChangedEvent,
+  SessionWorkflowSnapshotEvent,
   RepoTreeEntry,
   RepoFileContent,
   SessionRun,
@@ -29,6 +30,35 @@ import * as mock from "./mock";
 const SETTINGS_KEY = "codinggirl.settings";
 const SECURITY_KEY = "codinggirl.security.policies";
 const PLUGINS_KEY = "codinggirl.plugins";
+
+async function invokeCompat<T>(
+  command: string,
+  primaryArgs?: Record<string, unknown>,
+  fallbackArgs?: Record<string, unknown>,
+): Promise<T> {
+  const isArgError = (err: unknown): boolean => {
+    const message =
+      typeof err === "string"
+        ? err
+        : err instanceof Error
+          ? err.message
+          : String(err);
+    return /invalid args|missing required key|unknown field|unexpected key/i.test(
+      message,
+    );
+  };
+
+  try {
+    return await invoke<T>(command, primaryArgs);
+  } catch (primaryError) {
+    if (!fallbackArgs || !isArgError(primaryError)) throw primaryError;
+    try {
+      return await invoke<T>(command, fallbackArgs);
+    } catch {
+      throw primaryError;
+    }
+  }
+}
 
 function normalizeTimelineStatus(v: string): TimelineStep["status"] {
   return v === "pending" || v === "running" || v === "success" || v === "failed"
@@ -74,12 +104,20 @@ export async function listRepos(): Promise<RepoItem[]> {
 
 export async function listSessions(repoId: string): Promise<SessionItem[]> {
   if (!isTauriRuntime()) return mock.listSessions(repoId);
-  return invoke<SessionItem[]>("list_sessions", { repoId });
+  return invokeCompat<SessionItem[]>(
+    "list_sessions",
+    { repoId },
+    { repo_id: repoId },
+  );
 }
 
 export async function getTimeline(sessionId: string): Promise<TimelineStep[]> {
   if (!isTauriRuntime()) return mock.getTimeline(sessionId);
-  const items = await invoke<TimelineStep[]>("get_timeline", { sessionId });
+  const items = await invokeCompat<TimelineStep[]>(
+    "get_timeline",
+    { sessionId },
+    { session_id: sessionId },
+  );
   return items.map(normalizeTimelineItem);
 }
 
@@ -87,7 +125,11 @@ export async function getSessionEvents(
   sessionId: string,
 ): Promise<SessionEvent[]> {
   if (!isTauriRuntime()) return [];
-  return invoke<SessionEvent[]>("get_session_events", { sessionId });
+  return invokeCompat<SessionEvent[]>(
+    "get_session_events",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function listenSessionStateChanged(
@@ -102,28 +144,74 @@ export async function listenSessionStateChanged(
   return unlisten;
 }
 
+export async function listenSessionWorkflowSnapshot(
+  handler: (event: SessionWorkflowSnapshotEvent) => void,
+): Promise<() => void> {
+  if (!isTauriRuntime()) return () => undefined;
+  const eventApi = await import("@tauri-apps/api/event");
+  const unlisten = await eventApi.listen<SessionWorkflowSnapshotEvent>(
+    "session-workflow-snapshot",
+    (event) => {
+      const payload = event.payload;
+      handler({
+        ...payload,
+        timeline: (payload.timeline ?? []).map(normalizeTimelineItem),
+        toolCalls: (payload.toolCalls ?? []).map((x) => ({
+          ...x,
+          status: normalizeToolStatus(String(x.status)),
+        })),
+        logs: (payload.logs ?? []).map((x) => ({
+          ...x,
+          level: normalizeLogLevel(String(x.level)),
+        })),
+        artifacts: (payload.artifacts ?? []).map((x) => ({
+          ...x,
+          kind: normalizeArtifactKind(String(x.kind)),
+        })),
+      });
+    },
+  );
+  return unlisten;
+}
+
 export async function listSessionRuns(
   sessionId: string,
 ): Promise<SessionRun[]> {
   if (!isTauriRuntime()) return [];
-  return invoke<SessionRun[]>("list_session_runs", { sessionId });
+  return invokeCompat<SessionRun[]>(
+    "list_session_runs",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function listSessionTurns(
   sessionId: string,
 ): Promise<SessionTurn[]> {
   if (!isTauriRuntime()) return [];
-  return invoke<SessionTurn[]>("list_session_turns", { sessionId });
+  return invokeCompat<SessionTurn[]>(
+    "list_session_turns",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function getDiffFiles(sessionId: string): Promise<DiffFile[]> {
   if (!isTauriRuntime()) return mock.getDiffFiles(sessionId);
-  return invoke<DiffFile[]>("get_diff_files", { sessionId });
+  return invokeCompat<DiffFile[]>(
+    "get_diff_files",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function getToolCalls(sessionId: string): Promise<ToolCallItem[]> {
   if (!isTauriRuntime()) return mock.getToolCalls(sessionId);
-  const items = await invoke<ToolCallItem[]>("get_tool_calls", { sessionId });
+  const items = await invokeCompat<ToolCallItem[]>(
+    "get_tool_calls",
+    { sessionId },
+    { session_id: sessionId },
+  );
   return items.map((x) => ({
     ...x,
     status: normalizeToolStatus(String(x.status)),
@@ -132,7 +220,11 @@ export async function getToolCalls(sessionId: string): Promise<ToolCallItem[]> {
 
 export async function getLogs(sessionId: string): Promise<LogItem[]> {
   if (!isTauriRuntime()) return mock.getLogs(sessionId);
-  const items = await invoke<LogItem[]>("get_logs", { sessionId });
+  const items = await invokeCompat<LogItem[]>(
+    "get_logs",
+    { sessionId },
+    { session_id: sessionId },
+  );
   return items.map((x) => ({
     ...x,
     level: normalizeLogLevel(String(x.level)),
@@ -141,7 +233,11 @@ export async function getLogs(sessionId: string): Promise<LogItem[]> {
 
 export async function getArtifacts(sessionId: string): Promise<ArtifactItem[]> {
   if (!isTauriRuntime()) return mock.getArtifacts(sessionId);
-  const items = await invoke<ArtifactItem[]>("get_artifacts", { sessionId });
+  const items = await invokeCompat<ArtifactItem[]>(
+    "get_artifacts",
+    { sessionId },
+    { session_id: sessionId },
+  );
   return items.map((x) => ({
     ...x,
     kind: normalizeArtifactKind(String(x.kind)),
@@ -152,7 +248,11 @@ export async function getApprovalMeta(
   sessionId: string,
 ): Promise<ApprovalMeta> {
   if (!isTauriRuntime()) return mock.getApprovalMeta(sessionId);
-  const meta = await invoke<ApprovalMeta>("get_approval_meta", { sessionId });
+  const meta = await invokeCompat<ApprovalMeta>(
+    "get_approval_meta",
+    { sessionId },
+    { session_id: sessionId },
+  );
   return { ...meta, risk: normalizeRisk(String(meta.risk)) };
 }
 
@@ -170,11 +270,32 @@ export async function runSessionMessage(
       timeline: await mock.getTimeline(sessionId),
     };
   }
-  return invoke<RunSessionResult>("run_session_message", {
-    sessionId,
-    mode,
-    text,
-  });
+  return invokeCompat<RunSessionResult>(
+    "run_session_message",
+    { sessionId, mode, text },
+    { session_id: sessionId, mode, text },
+  );
+}
+
+export async function runPythonAgentMessage(
+  sessionId: string,
+  mode: string,
+  text: string,
+): Promise<RunSessionResult> {
+  if (!isTauriRuntime()) {
+    return {
+      runId: `mock-py-run-${Date.now()}`,
+      turnId: `mock-py-turn-${Date.now()}`,
+      status: "success",
+      assistantMessage: `（mock）python agent 收到任务（${mode} 模式）：${text}`,
+      timeline: await mock.getTimeline(sessionId),
+    };
+  }
+  return invokeCompat<RunSessionResult>(
+    "run_python_agent_message",
+    { sessionId, mode, text },
+    { session_id: sessionId, mode, text },
+  );
 }
 
 export async function createSession(
@@ -194,12 +315,20 @@ export async function createSession(
       updatedAt: now,
     };
   }
-  return invoke<SessionItem>("create_session", { repoId, title, mode });
+  return invokeCompat<SessionItem>(
+    "create_session",
+    { repoId, title, mode },
+    { repo_id: repoId, title, mode },
+  );
 }
 
 export async function deleteSession(sessionId: string): Promise<void> {
   if (!isTauriRuntime()) return;
-  await invoke("delete_session", { sessionId });
+  await invokeCompat<void>(
+    "delete_session",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function updateSessionMode(
@@ -207,7 +336,11 @@ export async function updateSessionMode(
   mode: string,
 ): Promise<void> {
   if (!isTauriRuntime()) return;
-  await invoke("update_session_mode", { sessionId, mode });
+  await invokeCompat<void>(
+    "update_session_mode",
+    { sessionId, mode },
+    { session_id: sessionId, mode },
+  );
 }
 
 export async function addRepo(path: string): Promise<RepoItem> {
@@ -222,12 +355,12 @@ export async function addRepo(path: string): Promise<RepoItem> {
 
 export async function removeRepo(repoId: string): Promise<void> {
   if (!isTauriRuntime()) return;
-  await invoke("remove_repo", { repoId });
+  await invokeCompat<void>("remove_repo", { repoId }, { repo_id: repoId });
 }
 
 export async function toggleRepoPin(repoId: string): Promise<void> {
   if (!isTauriRuntime()) return;
-  await invoke("toggle_repo_pin", { repoId });
+  await invokeCompat<void>("toggle_repo_pin", { repoId }, { repo_id: repoId });
 }
 
 export async function getSettings(): Promise<AppSettings> {
@@ -341,7 +474,11 @@ export async function togglePluginEnabled(pluginId: string): Promise<void> {
     window.localStorage.setItem(PLUGINS_KEY, JSON.stringify(next));
     return;
   }
-  await invoke("toggle_plugin_enabled", { pluginId });
+  await invokeCompat<void>(
+    "toggle_plugin_enabled",
+    { pluginId },
+    { plugin_id: pluginId },
+  );
 }
 
 export async function removePlugin(pluginId: string): Promise<void> {
@@ -351,14 +488,18 @@ export async function removePlugin(pluginId: string): Promise<void> {
     window.localStorage.setItem(PLUGINS_KEY, JSON.stringify(next));
     return;
   }
-  await invoke("remove_plugin", { pluginId });
+  await invokeCompat<void>("remove_plugin", { pluginId }, { plugin_id: pluginId });
 }
 
 export async function listRepoTree(
   sessionId: string,
 ): Promise<RepoTreeEntry[]> {
   if (!isTauriRuntime()) return [];
-  return invoke<RepoTreeEntry[]>("list_repo_tree", { sessionId });
+  return invokeCompat<RepoTreeEntry[]>(
+    "list_repo_tree",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function readRepoFile(
@@ -368,7 +509,11 @@ export async function readRepoFile(
   if (!isTauriRuntime()) {
     return { path, content: "web 模式下不可读取本地文件。", truncated: false };
   }
-  return invoke<RepoFileContent>("read_repo_file", { sessionId, path });
+  return invokeCompat<RepoFileContent>(
+    "read_repo_file",
+    { sessionId, path },
+    { session_id: sessionId, path },
+  );
 }
 
 export async function writeRepoFile(
@@ -377,7 +522,11 @@ export async function writeRepoFile(
   content: string,
 ): Promise<void> {
   if (!isTauriRuntime()) return;
-  await invoke("write_repo_file", { sessionId, path, content });
+  await invokeCompat<void>(
+    "write_repo_file",
+    { sessionId, path, content },
+    { session_id: sessionId, path, content },
+  );
 }
 
 export async function writeRepoFileAtomic(
@@ -387,12 +536,11 @@ export async function writeRepoFileAtomic(
   ifMatchSha256?: string,
 ): Promise<string> {
   if (!isTauriRuntime()) return "";
-  return invoke<string>("write_repo_file_atomic", {
-    sessionId,
-    path,
-    content,
-    ifMatchSha256,
-  });
+  return invokeCompat<string>(
+    "write_repo_file_atomic",
+    { sessionId, path, content, ifMatchSha256 },
+    { session_id: sessionId, path, content, if_match_sha256: ifMatchSha256 },
+  );
 }
 
 export async function rollbackPatchArtifact(
@@ -400,7 +548,11 @@ export async function rollbackPatchArtifact(
   rollbackMetaPath: string,
 ): Promise<void> {
   if (!isTauriRuntime()) return;
-  await invoke("rollback_patch_artifact", { sessionId, rollbackMetaPath });
+  await invokeCompat<void>(
+    "rollback_patch_artifact",
+    { sessionId, rollbackMetaPath },
+    { session_id: sessionId, rollback_meta_path: rollbackMetaPath },
+  );
 }
 
 export async function searchRepo(
@@ -409,30 +561,42 @@ export async function searchRepo(
   maxResults?: number,
 ): Promise<string[]> {
   if (!isTauriRuntime()) return [];
-  return invoke<string[]>("search_repo", { sessionId, pattern, maxResults });
+  return invokeCompat<string[]>(
+    "search_repo",
+    { sessionId, pattern, maxResults },
+    { session_id: sessionId, pattern, max_results: maxResults },
+  );
 }
 
 export async function getChatHistory(
   sessionId: string,
 ): Promise<{ role: string; content: string }[]> {
   if (!isTauriRuntime()) return [];
-  return invoke<{ role: string; content: string }[]>("get_chat_history", {
-    sessionId,
-  });
+  return invokeCompat<{ role: string; content: string }[]>(
+    "get_chat_history",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function getChatSummary(sessionId: string): Promise<string> {
   if (!isTauriRuntime()) return "";
-  return invoke<string>("get_chat_summary", { sessionId });
+  return invokeCompat<string>(
+    "get_chat_summary",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function getSessionContextDebug(
   sessionId: string,
 ): Promise<SessionContextDebugSnapshot | null> {
   if (!isTauriRuntime()) return null;
-  return invoke<SessionContextDebugSnapshot>("get_session_context_debug", {
-    sessionId,
-  });
+  return invokeCompat<SessionContextDebugSnapshot>(
+    "get_session_context_debug",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function runTerminalCommand(
@@ -443,11 +607,11 @@ export async function runTerminalCommand(
   if (!isTauriRuntime()) {
     throw new Error("Terminal is only available in desktop runtime.");
   }
-  return invoke<TerminalCommandResult>("run_terminal_command", {
-    sessionId,
-    command,
-    cwd,
-  });
+  return invokeCompat<TerminalCommandResult>(
+    "run_terminal_command",
+    { sessionId, command, cwd },
+    { session_id: sessionId, command, cwd },
+  );
 }
 
 export async function openPathInExplorer(path: string): Promise<void> {
@@ -497,7 +661,11 @@ export async function listPendingApprovals(
   sessionId: string,
 ): Promise<ApprovalRequest[]> {
   if (!isTauriRuntime()) return [];
-  return invoke<ApprovalRequest[]>("list_pending_approvals", { sessionId });
+  return invokeCompat<ApprovalRequest[]>(
+    "list_pending_approvals",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function approveRequest(
@@ -522,12 +690,16 @@ export async function approveRequest(
       allowSession,
     };
   }
-  return invoke<ApprovalRequest>("approve_request", {
-    sessionId,
-    approvalId,
-    note,
-    allowSession,
-  });
+  return invokeCompat<ApprovalRequest>(
+    "approve_request",
+    { sessionId, approvalId, note, allowSession },
+    {
+      session_id: sessionId,
+      approval_id: approvalId,
+      note,
+      allow_session: allowSession,
+    },
+  );
 }
 
 export async function rejectRequest(
@@ -551,11 +723,11 @@ export async function rejectRequest(
       allowSession: false,
     };
   }
-  return invoke<ApprovalRequest>("reject_request", {
-    sessionId,
-    approvalId,
-    note,
-  });
+  return invokeCompat<ApprovalRequest>(
+    "reject_request",
+    { sessionId, approvalId, note },
+    { session_id: sessionId, approval_id: approvalId, note },
+  );
 }
 
 export async function listSessionPermissions(
@@ -570,7 +742,7 @@ export async function listSessionPermissions(
   }>
 > {
   if (!isTauriRuntime()) return [];
-  return invoke<
+  return invokeCompat<
     Array<{
       sessionId: string;
       toolName: string;
@@ -578,7 +750,7 @@ export async function listSessionPermissions(
       path?: string;
       grantedAt: string;
     }>
-  >("list_session_permissions", { sessionId });
+  >("list_session_permissions", { sessionId }, { session_id: sessionId });
 }
 
 export async function exportTraceBundle(
@@ -600,9 +772,10 @@ export async function exportTraceBundle(
       },
     };
   }
-  return invoke<{ filePath: string; bundle: TraceBundle }>(
+  return invokeCompat<{ filePath: string; bundle: TraceBundle }>(
     "export_trace_bundle",
     { sessionId },
+    { session_id: sessionId },
   );
 }
 
@@ -610,7 +783,11 @@ export async function listMemoryBlocks(
   sessionId: string,
 ): Promise<MemoryBlock[]> {
   if (!isTauriRuntime()) return [];
-  return invoke<MemoryBlock[]>("list_memory_blocks", { sessionId });
+  return invokeCompat<MemoryBlock[]>(
+    "list_memory_blocks",
+    { sessionId },
+    { session_id: sessionId },
+  );
 }
 
 export async function setMemoryBlock(input: {
@@ -633,13 +810,25 @@ export async function setMemoryBlock(input: {
       updatedAt: new Date().toISOString(),
     };
   }
-  return invoke<MemoryBlock>("set_memory_block", {
-    sessionId: input.sessionId,
-    scope: input.scope,
-    label: input.label,
-    content: input.content,
-    description: input.description,
-    readOnly: input.readOnly,
-    limit: input.limit,
-  });
+  return invokeCompat<MemoryBlock>(
+    "set_memory_block",
+    {
+      sessionId: input.sessionId,
+      scope: input.scope,
+      label: input.label,
+      content: input.content,
+      description: input.description,
+      readOnly: input.readOnly,
+      limit: input.limit,
+    },
+    {
+      session_id: input.sessionId,
+      scope: input.scope,
+      label: input.label,
+      content: input.content,
+      description: input.description,
+      read_only: input.readOnly,
+      limit: input.limit,
+    },
+  );
 }

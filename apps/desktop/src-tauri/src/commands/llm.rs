@@ -214,8 +214,8 @@ pub(crate) async fn run_model_tool_loop(
     let mut final_content: Option<String> = None;
     let mut last_tool_sig: Option<String> = None;
     let mut consecutive_same_sig = 0usize;
-    let mut consecutive_failed_tools = 0usize;
-    let mut rounds_without_success = 0usize;
+    let mut _consecutive_failed_tools = 0usize;
+    let mut _rounds_without_success = 0usize;
     let mut has_read_tool = false;
     let mut has_mutation_tool = false;
     let mut model_request_index = 0usize;
@@ -496,7 +496,7 @@ pub(crate) async fn run_model_tool_loop(
 
         messages.push(assistant_tool_call_message(&msg.tool_calls));
         let mut round_had_success = false;
-        let mut round_failed_tools = 0usize;
+        let mut _round_failed_tools = 0usize;
 
         {
             let mut data = state.data.lock().map_err(|e| e.to_string())?;
@@ -529,40 +529,13 @@ pub(crate) async fn run_model_tool_loop(
                 consecutive_same_sig = 1;
                 last_tool_sig = Some(sig);
             }
-            let is_readonly_tool = matches!(
+            // NOTE: long/multi-task runs should not be constrained by repeated-tool-call guards.
+            // We still track consecutive signatures for potential diagnostics, but we do not stop the loop.
+            let _is_readonly_tool = matches!(
                 tc.function.name.as_str(),
                 "repo_read_file" | "repo_search" | "repo_list_tree" | "memory_list"
             );
-            let repeat_threshold = if is_readonly_tool { 8 } else { 4 };
-            if consecutive_same_sig > repeat_threshold {
-                let detail = format!(
-                    "repeat guard blocked tool {} after {} identical requests (threshold={})",
-                    tc.function.name, consecutive_same_sig, repeat_threshold
-                );
-                let corr = format!("corr-tool-repeat-{}", tc.id);
-                let mut data = state.data.lock().map_err(|e| e.to_string())?;
-                push_trace_event_for_run(
-                    &mut data,
-                    session_id,
-                    Some(run_id),
-                    "trace.guard.repeated-tool-call".into(),
-                    TimelineStatus::Failed,
-                    Some(detail.clone()),
-                    "session",
-                    Some(corr),
-                );
-                save_and_emit_session(
-                    state,
-                    app,
-                    &data,
-                    session_id,
-                    "run-runtime-updated",
-                    Some(run_id),
-                    Some(turn_id),
-                )?;
-                final_content = Some("检测到重复工具调用，已提前停止本轮以避免死循环。请缩小范围或指定具体文件后继续。".into());
-                break;
-            }
+            let _ = consecutive_same_sig;
             {
                 let mut data = state.data.lock().map_err(|e| e.to_string())?;
                 let tool_corr = format!("corr-tool-{}", tc.id);
@@ -719,11 +692,11 @@ pub(crate) async fn run_model_tool_loop(
                 ok,
             ));
             if ok {
-                consecutive_failed_tools = 0;
+                _consecutive_failed_tools = 0;
                 round_had_success = true;
             } else {
-                consecutive_failed_tools += 1;
-                round_failed_tools += 1;
+                _consecutive_failed_tools += 1;
+                _round_failed_tools += 1;
             }
             messages.push(tool_msg.clone());
             {
@@ -798,59 +771,18 @@ pub(crate) async fn run_model_tool_loop(
                     Some(turn_id),
                 )?;
             }
-            if consecutive_failed_tools >= 4 || round_failed_tools >= 3 {
-                let detail = format!(
-                    "tool failure guard stopped the loop after {} consecutive failures in this round",
-                    consecutive_failed_tools
-                );
-                let mut data = state.data.lock().map_err(|e| e.to_string())?;
-                push_trace_event_for_run(
-                    &mut data,
-                    session_id,
-                    Some(run_id),
-                    "trace.guard.tool-failure-storm".into(),
-                    TimelineStatus::Failed,
-                    Some(detail),
-                    "session",
-                    Some(format!("corr-tool-failure-{}", tc.id)),
-                );
-                save_and_emit_session(
-                    state,
-                    app,
-                    &data,
-                    session_id,
-                    "run-runtime-updated",
-                    Some(run_id),
-                    Some(turn_id),
-                )?;
-                final_content = Some(tool_failure_guard_message(&tool_events));
-                break;
-            }
+            // NOTE: long/multi-task runs should not be constrained by tool failure storm guards.
+            // Failures are still recorded in tool_events and will be reflected in verify/finalize.
         }
         if final_content.is_some() {
             break;
         }
         if round_had_success {
-            rounds_without_success = 0;
+            _rounds_without_success = 0;
         } else {
-            rounds_without_success += 1;
+            _rounds_without_success += 1;
         }
-        if rounds_without_success >= 2 && !tool_events.is_empty() {
-            let mut data = state.data.lock().map_err(|e| e.to_string())?;
-            push_trace_event_for_run(
-                &mut data,
-                session_id,
-                Some(run_id),
-                "trace.guard.no-progress".into(),
-                TimelineStatus::Failed,
-                Some("model completed multiple tool-planning rounds without any successful tool result".into()),
-                "session",
-                None,
-            );
-            state.save_locked(&data)?;
-            final_content = Some(tool_failure_guard_message(&tool_events));
-            break;
-        }
+        // NOTE: long/multi-task runs should not be constrained by no-progress guards.
     }
 
     {

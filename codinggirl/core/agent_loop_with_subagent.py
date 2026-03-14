@@ -97,7 +97,19 @@ class AgentLoopWithSubagent:
                 run_id=run_id,
                 kind="todo_initialized",
                 ts=utc_now_iso(),
-                payload={"stats": todo_manager.get_stats()},
+                payload={
+                    "stats": todo_manager.get_stats(),
+                    "items": [
+                        {
+                            "stepId": item.step_id,
+                            "title": item.title,
+                            "status": item.status,
+                            "activeForm": item.active_form,
+                        }
+                        for item in todo_manager.items
+                    ],
+                    "rendered": todo_manager.render_for_prompt(),
+                },
             )
 
         # 初始化 ContextManager
@@ -207,12 +219,31 @@ class AgentLoopWithSubagent:
 
                 # 调用 LLM
                 try:
+                    self.store.append_event(
+                        run_id=run_id,
+                        kind="llm_request",
+                        ts=utc_now_iso(),
+                        payload={
+                            "iteration": iterations,
+                            "message_count": len(messages),
+                            "tools_count": len(tool_schemas) if tool_schemas else 0,
+                        },
+                    )
                     response = self.llm.chat(
                         messages=messages,
                         tools=tool_schemas,
                         temperature=self.config.temperature,
                     )
                 except Exception as e:
+                    self.store.append_event(
+                        run_id=run_id,
+                        kind="llm_error",
+                        ts=utc_now_iso(),
+                        payload={
+                            "iteration": iterations,
+                            "error": str(e),
+                        },
+                    )
                     return AgentLoopWithSubagentResult(
                         run_id=run_id,
                         success=False,
@@ -305,7 +336,19 @@ class AgentLoopWithSubagent:
                             run_id=run_id,
                             kind="todo_updated",
                             ts=utc_now_iso(),
-                            payload={"stats": todo_manager.get_stats()},
+                            payload={
+                                "stats": todo_manager.get_stats(),
+                                "items": [
+                                    {
+                                        "stepId": item.step_id,
+                                        "title": item.title,
+                                        "status": item.status,
+                                        "activeForm": item.active_form,
+                                    }
+                                    for item in todo_manager.items
+                                ],
+                                "rendered": todo_manager.render_for_prompt(),
+                            },
                         )
 
                     result_content = self._format_tool_result(result)
@@ -313,6 +356,7 @@ class AgentLoopWithSubagent:
                         ChatMessage(
                             role="tool",
                             content=result_content,
+                            name=tc.name,
                             tool_call_id=tc.id,
                         )
                     )
