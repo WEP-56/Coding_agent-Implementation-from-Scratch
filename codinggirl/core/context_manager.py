@@ -127,7 +127,7 @@ class ContextManager:
         if messages and messages[0].role == "system":
             system_msg = messages[0]
 
-        last_msg = messages[-1] if messages else None
+        tail_msgs = self._tail_preserving_tool_pairs(messages)
 
         # 构建压缩后的 messages
         compacted: list[ChatMessage] = []
@@ -143,9 +143,11 @@ class ContextManager:
             )
         )
 
-        # 保留最后一条消息
-        if last_msg:
-            compacted.append(last_msg)
+        # 保留 tail messages，避免将 tool output 与 tool_call 分离，导致 OpenAI-compatible 400
+        for msg in tail_msgs:
+            if msg.role == "system":
+                continue
+            compacted.append(msg)
 
         self.compact_count += 1
 
@@ -254,6 +256,53 @@ Recent messages (last 5):
             prompt += f"\n{role}: {content}"
 
         return prompt
+
+    def _tail_preserving_tool_pairs(self, messages: list[ChatMessage]) -> list[ChatMessage]:
+        """
+        Preserve a tail window of messages while keeping tool call pairs intact.
+
+        Some OpenAI-compatible servers validate that a tool result references a previously
+        declared tool call id in an assistant message. If auto-compact keeps only a tool
+        result (or drops its corresponding assistant tool_calls), the request becomes invalid.
+        """
+        if not messages:
+            return []
+
+        default_keep = 6
+        start = max(0, len(messages) - default_keep)
+
+        def has_tool_call_id(assistant: ChatMessage, call_id: str) -> bool:
+            if assistant.role != "assistant" or not assistant.tool_calls:
+                return False
+            return any(tc.id == call_id for tc in assistant.tool_calls)
+
+        changed = True
+        while changed:
+            changed = False
+            for i in range(start, len(messages)):
+                msg = messages[i]
+                if msg.role != "tool" or not msg.tool_call_id:
+                    continue
+                call_id = msg.tool_call_id
+                parent = None
+                for j in range(i - 1, -1, -1):
+                    if has_tool_call_id(messages[j], call_id):
+                        parent = j
+                        break
+                if parent is not None and parent < start:
+                    start = parent
+                    changed = True
+
+        # Also keep the closest user message before the tool-call assistant (usually the prompt).
+        if start > 0:
+            for j in range(start - 1, -1, -1):
+                if messages[j].role == "user":
+                    start = j
+                    break
+                if messages[j].role == "assistant":
+                    break
+
+        return messages[start:]
 
     def _estimate_saved_tokens(
         self, original: list[ChatMessage], compacted: list[ChatMessage]

@@ -456,10 +456,10 @@ The subagent will return a summary of its findings."""
 
     def _format_tool_result(self, result: ToolResult) -> str:
         """格式化工具结果"""
-        if not result.ok:
-            return f"Error: {result.error}"
-
         parts: list[str] = []
+
+        if not result.ok:
+            parts.append(f"Error: {result.error}")
 
         if result.content:
             if isinstance(result.content, dict):
@@ -473,4 +473,6 @@ The subagent will return a summary of its findings."""
         if result.stderr:
             parts.append(f"stderr:\n{result.stderr}")
 
-        return "\n\n".join(parts) if parts else "Success (no output)"
+        if not parts:
+            return "Success (no output)" if result.ok else "Error (no details)"
+        return "\n\n".join(parts)

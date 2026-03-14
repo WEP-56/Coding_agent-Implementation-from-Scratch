@@ -345,12 +345,14 @@ export interface ModelConfig {
   model: string;
   baseUrl: string;
   apiKey: string;
+  timeoutSec?: number;
 }
 
 export interface AppSettings {
   notificationsEnabled: boolean;
   defaultSessionMode: SessionMode;
   defaultTheme: "light" | "dark";
+  outputStyle?: "default" | "kawaii-schoolgirl";
   model: ModelConfig;
   rulesByRepo: Record<string, { content: string; updatedAt: string }>;
 }

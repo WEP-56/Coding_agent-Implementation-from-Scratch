@@ -8,6 +8,7 @@ import { WorkspaceLayout } from "../components/workspace/workspace-layout";
 import { CustomTitlebar } from "../components/layout/custom-titlebar";
 import {
   addRepo,
+  cancelPythonAgentRun,
   createSession as createSessionRemote,
   deleteSession as deleteSessionRemote,
   exportTraceBundle,
@@ -352,6 +353,20 @@ export function WorkspacePageV3() {
       });
   };
 
+  const handleStop = () => {
+    if (!currentSessionId) return;
+    cancelPythonAgentRun(currentSessionId)
+      .then((ok) => {
+        pushToast({
+          kind: "info",
+          title: ok ? "已请求停止" : "当前没有可停止的任务",
+        });
+      })
+      .catch((e) =>
+        pushToast({ kind: "error", title: "停止失败", message: String(e) }),
+      );
+  };
+
   const handleTerminalCommandLifecycle = (
     _phase: "started" | "finished",
     _sessionId: string,
@@ -505,6 +520,7 @@ export function WorkspacePageV3() {
             currentMode={currentSession?.mode ?? "build"}
             isRunning={isLoadingTimeline}
             onSend={handleSend}
+            onStop={handleStop}
             onModeChange={handleModeChange}
             onRetryStep={handleRetryStep}
             onRollback={handleRollback}

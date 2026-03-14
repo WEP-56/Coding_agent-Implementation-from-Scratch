@@ -97,6 +97,12 @@ function normalizeProvider(v: string): AppSettings["model"]["provider"] {
   return v === "mock" || v === "openai-compatible" ? v : "mock";
 }
 
+function normalizeTimeoutSec(v: unknown): number {
+  const num = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(num)) return 180;
+  return Math.max(10, Math.min(900, Math.trunc(num)));
+}
+
 export async function listRepos(): Promise<RepoItem[]> {
   if (!isTauriRuntime()) return mock.listRepos();
   return invoke<RepoItem[]>("list_repos");
@@ -298,6 +304,15 @@ export async function runPythonAgentMessage(
   );
 }
 
+export async function cancelPythonAgentRun(sessionId: string): Promise<boolean> {
+  if (!isTauriRuntime()) return false;
+  return invokeCompat<boolean>(
+    "cancel_python_agent_run",
+    { sessionId },
+    { session_id: sessionId },
+  );
+}
+
 export async function createSession(
   repoId: string,
   title: string,
@@ -372,7 +387,13 @@ export async function getSettings(): Promise<AppSettings> {
           notificationsEnabled: true,
           defaultSessionMode: "build",
           defaultTheme: "dark",
-          model: { provider: "mock", model: "mock-1", baseUrl: "", apiKey: "" },
+          model: {
+            provider: "mock",
+            model: "mock-1",
+            baseUrl: "",
+            apiKey: "",
+            timeoutSec: 180,
+          },
           rulesByRepo: {},
         };
       }
@@ -382,7 +403,13 @@ export async function getSettings(): Promise<AppSettings> {
         notificationsEnabled: true,
         defaultSessionMode: "build",
         defaultTheme: "dark",
-        model: { provider: "mock", model: "mock-1", baseUrl: "", apiKey: "" },
+        model: {
+          provider: "mock",
+          model: "mock-1",
+          baseUrl: "",
+          apiKey: "",
+          timeoutSec: 180,
+        },
         rulesByRepo: {},
       };
     }
@@ -393,6 +420,7 @@ export async function getSettings(): Promise<AppSettings> {
     model: {
       ...settings.model,
       provider: normalizeProvider(String(settings.model.provider)),
+      timeoutSec: normalizeTimeoutSec((settings.model as { timeoutSec?: unknown }).timeoutSec),
     },
   };
 }

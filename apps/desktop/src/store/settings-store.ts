@@ -19,11 +19,13 @@ const defaults: AppSettings = {
   notificationsEnabled: true,
   defaultSessionMode: "build",
   defaultTheme: "dark",
+  outputStyle: "default",
   model: {
     provider: "mock",
     model: "mock-1",
     baseUrl: "",
     apiKey: "",
+    timeoutSec: 180,
   },
   rulesByRepo: {},
 };

@@ -180,6 +180,21 @@ export function SettingsPage() {
         <h2 className="mb-3 text-sm font-medium">模型配置</h2>
         <div className="grid gap-2 text-xs">
           <label className="flex items-center justify-between rounded border border-border px-2 py-1.5">
+            <span>Style</span>
+            <select
+              className="h-7 rounded border border-input bg-background px-2 text-xs"
+              value={settings.outputStyle ?? "default"}
+              onChange={(e) =>
+                update({
+                  outputStyle: e.target.value as "default" | "kawaii-schoolgirl",
+                })
+              }
+            >
+              <option value="default">default</option>
+              <option value="kawaii-schoolgirl">kawaii-schoolgirl</option>
+            </select>
+          </label>
+          <label className="flex items-center justify-between rounded border border-border px-2 py-1.5">
             <span>Provider</span>
             <select
               className="h-7 rounded border border-input bg-background px-2 text-xs"
@@ -218,6 +233,25 @@ export function SettingsPage() {
               className="h-8 w-full rounded border border-input bg-background px-2"
               value={settings.model.apiKey}
               onChange={(e) => updateModel({ apiKey: e.target.value })}
+            />
+          </label>
+
+          <label className="rounded border border-border px-2 py-1.5">
+            <div className="mb-1">Timeout (sec)</div>
+            <input
+              type="number"
+              min={10}
+              max={900}
+              className="h-8 w-full rounded border border-input bg-background px-2"
+              value={settings.model.timeoutSec ?? 180}
+              onChange={(e) =>
+                updateModel({
+                  timeoutSec: Math.max(
+                    10,
+                    Math.min(900, Number(e.target.value) || 180),
+                  ),
+                })
+              }
             />
           </label>
 

@@ -518,6 +518,8 @@ pub struct ModelConfig {
     pub base_url: String,
     #[serde(rename = "apiKey")]
     pub api_key: String,
+    #[serde(default, rename = "timeoutSec")]
+    pub timeout_sec: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -535,6 +537,8 @@ pub struct AppSettings {
     pub default_session_mode: String,
     #[serde(rename = "defaultTheme")]
     pub default_theme: String,
+    #[serde(default, rename = "outputStyle")]
+    pub output_style: Option<String>,
     pub model: ModelConfig,
     #[serde(rename = "rulesByRepo")]
     pub rules_by_repo: HashMap<String, RuleEntry>,
@@ -969,11 +973,13 @@ impl Default for AppData {
                 notifications_enabled: true,
                 default_session_mode: "build".into(),
                 default_theme: "dark".into(),
+                output_style: Some("default".into()),
                 model: ModelConfig {
                     provider: Provider::Mock,
                     model: "mock-1".into(),
                     base_url: "".into(),
                     api_key: "".into(),
+                    timeout_sec: Some(180),
                 },
                 rules_by_repo: HashMap::new(),
             },

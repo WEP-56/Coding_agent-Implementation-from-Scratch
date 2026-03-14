@@ -35,6 +35,7 @@ interface ChatAreaProps {
   currentMode: SessionMode;
   isRunning: boolean;
   onSend: (text: string, mode: SessionMode) => void;
+  onStop?: () => void;
   onModeChange: (mode: SessionMode) => void;
   onRetryStep?: (stepId: string) => void;
   onRollback?: () => void;
@@ -169,6 +170,7 @@ export function ChatArea({
   currentMode,
   isRunning,
   onSend,
+  onStop,
   onModeChange,
 }: ChatAreaProps) {
   const [input, setInput] = useState("");
@@ -214,13 +216,23 @@ export function ChatArea({
   }, [sessionId, timeline, toolCalls]);
 
   const handleSend = () => {
+    if (isRunning) return;
     const text = input.trim();
     if (!text) return;
     onSend(text, selectedMode);
     setInput("");
   };
 
+  const handleStop = () => {
+    onStop?.();
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Escape" && isRunning) {
+      e.preventDefault();
+      handleStop();
+      return;
+    }
     if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
       e.preventDefault();
       handleSend();
@@ -414,17 +426,23 @@ export function ChatArea({
               disabled={isRunning}
             />
             <button
-              onClick={handleSend}
-              disabled={!input.trim() || isRunning}
+              onClick={isRunning ? handleStop : handleSend}
+              disabled={isRunning ? !onStop : !input.trim()}
               className={cn(
                 "flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-2xl transition-colors",
-                input.trim() && !isRunning
+                (isRunning ? Boolean(onStop) : input.trim())
                   ? "bg-primary text-primary-foreground hover:bg-primary/90"
                   : "cursor-not-allowed bg-muted text-muted-foreground",
               )}
             >
               {isRunning ? (
-                <div className="h-5 w-5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                <svg
+                  className="h-5 w-5"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <rect x="7" y="7" width="10" height="10" rx="2" />
+                </svg>
               ) : (
                 <svg
                   className="h-5 w-5"

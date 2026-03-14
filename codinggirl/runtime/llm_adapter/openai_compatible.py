@@ -284,6 +284,21 @@ class OpenAICompatibleProvider:
                     raise ValueError("invalid response: root is not object")
                 return _parse_openai_response(parsed)
 
+            except TimeoutError as e:
+                if attempt < max_attempts:
+                    _backoff_sleep(attempt)
+                    continue
+                summary = {
+                    "endpoint": endpoint,
+                    "reason": str(e),
+                    "model": str(self.config.model),
+                    "timeout_sec": int(self.config.timeout_sec),
+                    "tools_mode": "legacy" if use_legacy else "tools",
+                }
+                raise ValueError(
+                    "openai-compatible request failed: " + json.dumps(summary, ensure_ascii=False)
+                ) from None
+
             except HTTPError as e:
                 status = int(getattr(e, "code", 0) or 0)
                 try:
@@ -306,6 +321,7 @@ class OpenAICompatibleProvider:
                     "status": status,
                     "reason": str(getattr(e, "reason", "")),
                     "model": str(self.config.model),
+                    "timeout_sec": int(self.config.timeout_sec),
                     "messages": len(payload.get("messages") or []),
                     "tools_mode": "legacy" if use_legacy else "tools",
                     "tools": len(payload.get("tools") or []) if "tools" in payload else 0,
@@ -326,6 +342,7 @@ class OpenAICompatibleProvider:
                     "endpoint": endpoint,
                     "reason": str(getattr(e, "reason", e)),
                     "model": str(self.config.model),
+                    "timeout_sec": int(self.config.timeout_sec),
                     "tools_mode": "legacy" if use_legacy else "tools",
                 }
                 raise ValueError(

@@ -3,26 +3,94 @@ use crate::commands::policy::push_trace_event_for_run;
 use crate::commands::session_runtime::{create_session_run, finish_session_run, upsert_session_preflight_item};
 use crate::commands::turn_manager::complete_session_turn;
 use crate::runtime_events::save_and_emit_session;
-use crate::state::{AppSettings, AppState, RunSessionResult, RunStatus, TimelineStatus, ToolCallItem, ToolStatus};
+use crate::state::{AppSettings, AppState, ChatTurn, RunSessionResult, RunStatus, TimelineStatus, ToolCallItem, ToolStatus};
 use serde::Deserialize;
 use serde_json::json;
+use std::fs;
 use std::io::{BufRead, BufReader, Read};
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{
     atomic::{AtomicBool, AtomicU64, Ordering},
     Arc, Mutex,
 };
+use std::sync::atomic::AtomicU32;
+use std::sync::OnceLock;
 use std::thread;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 use tauri::async_runtime::spawn_blocking;
 use tauri::{AppHandle, Manager, State};
+
+#[derive(Clone)]
+struct PythonRunControl {
+    cancel: Arc<AtomicBool>,
+    pid: Arc<AtomicU32>,
+}
+
+static PYTHON_RUN_CONTROLS: OnceLock<Mutex<HashMap<String, PythonRunControl>>> = OnceLock::new();
+
+fn python_run_controls() -> &'static Mutex<HashMap<String, PythonRunControl>> {
+    PYTHON_RUN_CONTROLS.get_or_init(|| Mutex::new(HashMap::new()))
+}
 
 fn now_ms_u64() -> u64 {
     SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .map(|d| d.as_millis() as u64)
         .unwrap_or(0)
+}
+
+fn try_kill_process_tree(pid: u32) -> Result<(), String> {
+    if pid == 0 {
+        return Ok(());
+    }
+    if cfg!(windows) {
+        let out = Command::new("taskkill")
+            .args(["/PID", &pid.to_string(), "/T", "/F"])
+            .output()
+            .map_err(|e| format!("taskkill failed: {}", e))?;
+        if out.status.success() {
+            return Ok(());
+        }
+        let stderr = String::from_utf8_lossy(&out.stderr);
+        let stdout = String::from_utf8_lossy(&out.stdout);
+        return Err(format!("taskkill exit={} stdout={} stderr={}", out.status, stdout, stderr));
+    }
+
+    Err("kill not implemented for this platform".into())
+}
+
+fn chat_history_file(repo_root: &str, session_id: &str) -> PathBuf {
+    PathBuf::from(repo_root)
+        .join(".codinggirl")
+        .join("chat")
+        .join(format!("{}.json", session_id))
+}
+
+fn load_chat_history(path: &std::path::Path) -> Vec<ChatTurn> {
+    let raw = fs::read_to_string(path).unwrap_or_default();
+    serde_json::from_str::<Vec<ChatTurn>>(&raw).unwrap_or_default()
+}
+
+fn save_chat_history(path: &std::path::Path, turns: &[ChatTurn]) -> Result<(), String> {
+    if let Some(parent) = path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("create chat dir failed: {}", e))?;
+    }
+    let raw = serde_json::to_string_pretty(turns).map_err(|e| e.to_string())?;
+    fs::write(path, raw).map_err(|e| format!("write chat history failed: {}", e))
+}
+
+fn push_chat_turn(turns: &mut Vec<ChatTurn>, role: &str, content: &str) {
+    let content = content.chars().take(16_000).collect::<String>();
+    turns.push(ChatTurn {
+        role: role.to_string(),
+        content,
+    });
+    if turns.len() > 60 {
+        let keep = turns.split_off(turns.len().saturating_sub(60));
+        *turns = keep;
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -106,6 +174,8 @@ fn normalize_provider(settings: &AppSettings) -> String {
 fn status_for_kind(kind: &str) -> TimelineStatus {
     if kind.ends_with("_error") || kind == "loop_error" || kind.ends_with("_failed") {
         TimelineStatus::Failed
+    } else if kind == "llm_request" {
+        TimelineStatus::Running
     } else {
         TimelineStatus::Success
     }
@@ -115,6 +185,7 @@ fn map_kind_to_trace_title(kind: &str) -> (&'static str, &'static str) {
     match kind {
         // Core loop
         "loop_iteration" => ("trace.phase.explore", "session"),
+        "llm_request" => ("trace.phase.plan", "session"),
         "llm_response" => ("trace.phase.plan", "session"),
         "loop_complete" => ("trace.phase.finalize", "session"),
         "loop_error" => ("trace.phase.finalize", "session"),
@@ -147,6 +218,8 @@ fn should_emit_snapshot(kind: &str) -> bool {
             | "subagent_complete"
             | "subagent_error"
             | "subagent_max_iterations"
+            | "llm_request"
+            | "llm_error"
             | "loop_complete"
             | "loop_error"
             | "loop_max_iterations"
@@ -171,9 +244,36 @@ pub async fn run_python_agent_message(
     app: AppHandle,
     state: State<'_, AppState>,
 ) -> Result<RunSessionResult, String> {
-    let (repo_root, settings, run_id, turn_id) = {
+    let control = PythonRunControl {
+        cancel: Arc::new(AtomicBool::new(false)),
+        pid: Arc::new(AtomicU32::new(0)),
+    };
+
+    let (repo_root, settings, run_id, turn_id, history_file) = {
         let mut data = state.data.lock().map_err(|e| e.to_string())?;
         let repo_root = session_repo_path(&data, &session_id)?;
+        let history_file = chat_history_file(&repo_root, &session_id);
+
+        // Persist chat history to the repo so the Python agent can reload it across turns.
+        {
+            let mut turns = load_chat_history(&history_file);
+            push_chat_turn(&mut turns, "user", &text);
+            let _ = save_chat_history(&history_file, &turns);
+        }
+
+        // Also keep a lightweight copy in app state for UI hydration.
+        {
+            let list = data.chat_history.entry(session_id.clone()).or_default();
+            list.push(ChatTurn {
+                role: "user".into(),
+                content: text.clone(),
+            });
+            if list.len() > 120 {
+                let keep = list.split_off(list.len().saturating_sub(120));
+                *list = keep;
+            }
+        }
+
         let (run, _turn) = create_session_run(
             &mut data,
             &session_id,
@@ -208,8 +308,22 @@ pub async fn run_python_agent_message(
             Some(&run.id),
             Some(&run.turn_id),
         )?;
-        (repo_root, data.settings.clone(), run.id, run.turn_id)
+        (
+            repo_root,
+            data.settings.clone(),
+            run.id,
+            run.turn_id,
+            history_file,
+        )
     };
+
+    {
+        let mut controls = python_run_controls().lock().map_err(|e| e.to_string())?;
+        if controls.contains_key(&session_id) {
+            return Err("python agent already running for this session".into());
+        }
+        controls.insert(session_id.clone(), control.clone());
+    }
 
     let app2 = app.clone();
     let session_id2 = session_id.clone();
@@ -217,6 +331,8 @@ pub async fn run_python_agent_message(
     let text2 = text.clone();
     let run_id2 = run_id.clone();
     let turn_id2 = turn_id.clone();
+    let control2 = control.clone();
+    let history_file2 = history_file.clone();
 
     let (assistant_message, success) = spawn_blocking(move || {
         let state = app2.state::<AppState>();
@@ -256,7 +372,11 @@ pub async fn run_python_agent_message(
         };
 
         let execution: Result<(String, bool), String> = (|| {
+            if control2.cancel.load(Ordering::Relaxed) {
+                return Err("canceled by user".into());
+            }
             let provider = normalize_provider(&settings);
+            let llm_timeout_sec = settings.model.timeout_sec.unwrap_or(180).clamp(10, 900);
 
             let mut cmd = Command::new("python");
 
@@ -331,12 +451,16 @@ pub async fn run_python_agent_message(
                     "trace.python.env".into(),
                     TimelineStatus::Success,
                     Some(format!(
-                        "repo_root={} workspace_root={} provider={} model={} base_url={} PYTHONPATH={}",
+                        "repo_root={} workspace_root={} provider={} model={} base_url={} style={} PYTHONPATH={}",
                         repo_root,
                         workspace_root,
                         provider,
                         settings.model.model,
                         settings.model.base_url,
+                        settings
+                            .output_style
+                            .clone()
+                            .unwrap_or_else(|| "default".into()),
                         python_path
                     )),
                     "session",
@@ -366,6 +490,15 @@ pub async fn run_python_agent_message(
                 .arg(&text2)
                 .arg("--repo")
                 .arg(&repo_root)
+                .arg("--history-file")
+                .arg(history_file2.to_string_lossy().to_string())
+                .arg("--style")
+                .arg(
+                    settings
+                        .output_style
+                        .clone()
+                        .unwrap_or_else(|| "default".into()),
+                )
                 .arg("--provider")
                 .arg(provider)
                 .arg("--model")
@@ -378,6 +511,8 @@ pub async fn run_python_agent_message(
                 .arg(run_id2.clone())
                 .arg("--max-iterations")
                 .arg("400")
+                .arg("--timeout-sec")
+                .arg(llm_timeout_sec.to_string())
                 .arg("--keep-recent")
                 .arg("8");
 
@@ -392,6 +527,9 @@ pub async fn run_python_agent_message(
             cmd.stderr(Stdio::piped());
 
             let mut child = cmd.spawn().map_err(|e| format!("spawn python failed: {}", e))?;
+            control2
+                .pid
+                .store(child.id(), Ordering::Relaxed);
             let stdout = child
                 .stdout
                 .take()
@@ -404,12 +542,13 @@ pub async fn run_python_agent_message(
             let child: Arc<Mutex<Child>> = Arc::new(Mutex::new(child));
             let last_activity_ms: Arc<AtomicU64> = Arc::new(AtomicU64::new(now_ms_u64()));
             let did_timeout: Arc<AtomicBool> = Arc::new(AtomicBool::new(false));
+            let idle_timeout_secs: u64 = (llm_timeout_sec + 90).clamp(240, 1200);
             {
                 let child_killer = child.clone();
                 let last_activity_ms = last_activity_ms.clone();
                 let did_timeout = did_timeout.clone();
+                let idle_timeout = Duration::from_secs(idle_timeout_secs);
                 thread::spawn(move || {
-                    let idle_timeout = Duration::from_secs(120);
                     loop {
                         thread::sleep(Duration::from_millis(750));
                         let last = last_activity_ms.load(Ordering::Relaxed);
@@ -612,11 +751,8 @@ pub async fn run_python_agent_message(
                                 } else {
                                     ToolStatus::Failed
                                 };
-                                item.result_json = if ok {
-                                    output.to_string()
-                                } else {
-                                    json!({"error": error}).to_string()
-                                };
+                                item.result_json =
+                                    json!({"ok": ok, "output": output, "error": error}).to_string();
                             }
                         }
 
@@ -711,9 +847,13 @@ pub async fn run_python_agent_message(
             let mut remaining_err = String::new();
             let _ = stderr_reader.read_to_string(&mut remaining_err);
 
+            if control2.cancel.load(Ordering::Relaxed) {
+                return Err("canceled by user".into());
+            }
             if did_timeout.load(Ordering::Relaxed) {
                 return Err(format!(
-                    "python agent stalled: no stdout for 120s (likely LLM/network hang). stderr={} ",
+                    "python agent stalled: no stdout for {}s (likely LLM/network hang). stderr={} ",
+                    idle_timeout_secs,
                     remaining_err.chars().take(1200).collect::<String>()
                 ));
             }
@@ -737,10 +877,16 @@ pub async fn run_python_agent_message(
             Ok((final_message, success))
         })();
 
-        match execution {
+        let outcome = match execution {
             Ok(v) => Ok(v),
             Err(err) => finalize_failure(err),
-        }
+        };
+
+        let _ = python_run_controls()
+            .lock()
+            .map(|mut controls| controls.remove(&session_id2));
+
+        outcome
     })
     .await
     .map_err(|e| format!("python task join failed: {}", e))??;
@@ -750,6 +896,25 @@ pub async fn run_python_agent_message(
         data.timeline_for_session(&session_id)
     };
 
+    // Append assistant message to persisted history after the run completes.
+    if success {
+        let mut data = state.data.lock().map_err(|e| e.to_string())?;
+        let list = data.chat_history.entry(session_id.clone()).or_default();
+        list.push(ChatTurn {
+            role: "assistant".into(),
+            content: assistant_message.clone(),
+        });
+        if list.len() > 120 {
+            let keep = list.split_off(list.len().saturating_sub(120));
+            *list = keep;
+        }
+        state.save_locked(&data)?;
+
+        let mut turns = load_chat_history(&history_file);
+        push_chat_turn(&mut turns, "assistant", &assistant_message);
+        let _ = save_chat_history(&history_file, &turns);
+    }
+
     Ok(RunSessionResult {
         run_id,
         turn_id,
@@ -757,4 +922,21 @@ pub async fn run_python_agent_message(
         assistant_message: assistant_message.clone(),
         timeline,
     })
+}
+
+#[tauri::command]
+pub fn cancel_python_agent_run(session_id: String) -> Result<bool, String> {
+    let control = {
+        let controls = python_run_controls().lock().map_err(|e| e.to_string())?;
+        controls.get(&session_id).cloned()
+    };
+
+    let Some(control) = control else {
+        return Ok(false);
+    };
+
+    control.cancel.store(true, Ordering::Relaxed);
+    let pid = control.pid.load(Ordering::Relaxed);
+    let _ = try_kill_process_tree(pid);
+    Ok(true)
 }
