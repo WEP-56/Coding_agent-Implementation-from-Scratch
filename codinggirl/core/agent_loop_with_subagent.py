@@ -101,9 +101,9 @@ class AgentLoopWithSubagent:
         todo_manager: TodoManager | None = None
         if self.config.enable_todo and initial_plan:
             todo_manager = TodoManager.from_plan(initial_plan)
+            # Note: `messages` is initialized later; avoid referencing it here.
+            # We'll fill contextTokens after message history is built.
             stats = todo_manager.get_stats()
-            if context_manager is not None:
-                stats = {**stats, "contextTokens": context_manager.estimate_tokens(messages)}
             self.store.append_event(
                 run_id=run_id,
                 kind="todo_initialized",
@@ -143,6 +143,27 @@ class AgentLoopWithSubagent:
         if system_prompt:
             messages.append(ChatMessage(role="system", content=system_prompt))
         messages.append(ChatMessage(role="user", content=user_goal))
+
+        # Backfill context token estimate for UI stats (best-effort).
+        if todo_manager and context_manager:
+            self.store.append_event(
+                run_id=run_id,
+                kind="todo_updated",
+                ts=utc_now_iso(),
+                payload={
+                    "stats": {**todo_manager.get_stats(), "contextTokens": context_manager.estimate_tokens(messages)},
+                    "items": [
+                        {
+                            "stepId": item.step_id,
+                            "title": item.title,
+                            "status": item.status,
+                            "activeForm": item.active_form,
+                        }
+                        for item in todo_manager.items
+                    ],
+                    "rendered": todo_manager.render_for_prompt(),
+                },
+            )
 
         # 准备工具 schemas
         tool_schemas = self._build_tool_schemas(todo_manager, subagent_runner is not None)
