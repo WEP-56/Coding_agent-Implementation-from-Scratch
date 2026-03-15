@@ -346,6 +346,11 @@ export interface ModelConfig {
   baseUrl: string;
   apiKey: string;
   timeoutSec?: number;
+  /**
+   * Optional context token limit used for auto-compaction.
+   * If omitted, the runtime will pick a conservative default.
+   */
+  contextTokenLimit?: number;
 }
 
 export interface AppSettings {

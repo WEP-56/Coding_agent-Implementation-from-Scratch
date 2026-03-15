@@ -255,6 +255,36 @@ export function SettingsPage() {
             />
           </label>
 
+          <label className="rounded border border-border px-2 py-1.5">
+            <div className="mb-1">Context token limit (auto-compact)</div>
+            <input
+              type="number"
+              min={2000}
+              max={200000}
+              className="h-8 w-full rounded border border-input bg-background px-2"
+              value={settings.model.contextTokenLimit ?? ""}
+              onChange={(e) => {
+                const raw = e.target.value;
+                if (!raw.trim()) {
+                  updateModel({ contextTokenLimit: undefined });
+                  return;
+                }
+                const parsed = Number(raw);
+                if (!Number.isFinite(parsed)) return;
+                updateModel({
+                  contextTokenLimit: Math.max(
+                    2000,
+                    Math.min(200000, Math.trunc(parsed)),
+                  ),
+                });
+              }}
+              placeholder="留空则使用默认值（更保守）"
+            />
+            <div className="mt-1 text-[10px] text-muted-foreground">
+              建议：小模型 8k~16k，大模型 32k~64k。达到阈值会触发上下文压缩并在 Trace 里记录。
+            </div>
+          </label>
+
           <div className="mt-1 flex justify-end">
             <Button
               variant="outline"

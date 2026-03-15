@@ -1037,6 +1037,7 @@ mod tests {
                 base_url: "http://localhost:8317".into(),
                 api_key: "token".into(),
                 timeout_sec: None,
+                context_token_limit: None,
             },
             rules_by_repo: std::collections::HashMap::new(),
         };

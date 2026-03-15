@@ -26,6 +26,7 @@ const defaults: AppSettings = {
     baseUrl: "",
     apiKey: "",
     timeoutSec: 180,
+    // contextTokenLimit is intentionally omitted by default (runtime falls back).
   },
   rulesByRepo: {},
 };

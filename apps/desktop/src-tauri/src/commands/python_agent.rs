@@ -526,6 +526,16 @@ pub async fn run_python_agent_message(
                 .arg("--keep-recent")
                 .arg("8");
 
+            // Context auto-compaction token threshold.
+            // If the user configured a limit, use it; otherwise choose a conservative default.
+            let token_threshold: u64 = settings
+                .model
+                .context_token_limit
+                .unwrap_or(16_000)
+                .clamp(4_000, 200_000);
+            cmd.arg("--token-threshold")
+                .arg(token_threshold.to_string());
+
             let perm = match mode2.as_str() {
                 "plan" => "readonly",
                 "auto" => "exec",

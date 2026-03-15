@@ -520,6 +520,8 @@ pub struct ModelConfig {
     pub api_key: String,
     #[serde(default, rename = "timeoutSec")]
     pub timeout_sec: Option<u64>,
+    #[serde(default, rename = "contextTokenLimit")]
+    pub context_token_limit: Option<u64>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -980,6 +982,7 @@ impl Default for AppData {
                     base_url: "".into(),
                     api_key: "".into(),
                     timeout_sec: Some(180),
+                    context_token_limit: None,
                 },
                 rules_by_repo: HashMap::new(),
             },
