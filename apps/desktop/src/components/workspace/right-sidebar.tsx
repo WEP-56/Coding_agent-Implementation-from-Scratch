@@ -1,43 +1,46 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import {
-  getSessionContextDebug,
   listRepoTree,
   listenSessionStateChanged,
   readRepoFile,
   writeRepoFile,
 } from "../../api/bridge";
 import { cn } from "../../lib/utils";
-import type {
-  RepoFileContent,
-  RepoTreeEntry,
-  SessionContextDebugSnapshot,
-  PythonTodoState,
-} from "../../types/models";
-import { ContextPanel } from "./context-panel";
-import { MemoryPanel } from "./memory-panel";
-import { PythonTodoPanel } from "./python-todo-panel";
+import type { RepoFileContent, RepoTreeEntry } from "../../types/models";
 
 interface RightSidebarProps {
   sessionId: string | null;
   traceVersion?: string;
-  pythonTodo?: PythonTodoState | null;
 }
 
-type TabType = "files" | "memory" | "context" | "todo";
+function dirname(path: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx >= 0 ? path.slice(0, idx) : "";
+}
 
-export function RightSidebar({ sessionId, traceVersion, pythonTodo = null }: RightSidebarProps) {
-  const [activeTab, setActiveTab] = useState<TabType>("files");
+function basename(path: string): string {
+  const idx = path.lastIndexOf("/");
+  return idx >= 0 ? path.slice(idx + 1) : path;
+}
+
+function depth(path: string): number {
+  if (!path) return 0;
+  return path.split("/").filter(Boolean).length;
+}
+
+export function RightSidebar({ sessionId }: RightSidebarProps) {
   const [repoTree, setRepoTree] = useState<RepoTreeEntry[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
   const [filePreview, setFilePreview] = useState<RepoFileContent | null>(null);
   const [loadingFile, setLoadingFile] = useState(false);
   const [draftContent, setDraftContent] = useState("");
-  const [contextSnapshot, setContextSnapshot] =
-    useState<SessionContextDebugSnapshot | null>(null);
-  const [contextLoading, setContextLoading] = useState(false);
-  const [contextError, setContextError] = useState<string | null>(null);
   const [refreshNonce, setRefreshNonce] = useState(0);
+
+  const [expandedDirs, setExpandedDirs] = useState<Set<string>>(new Set());
+  const [childrenByDir, setChildrenByDir] = useState<Record<string, RepoTreeEntry[]>>({});
+
+  const rootKey = "";
 
   useEffect(() => {
     let active = true;
@@ -60,51 +63,26 @@ export function RightSidebar({ sessionId, traceVersion, pythonTodo = null }: Rig
   }, [sessionId]);
 
   useEffect(() => {
-    if (!sessionId || activeTab !== "files") return;
+    if (!sessionId) return;
     let canceled = false;
-    void listRepoTree(sessionId)
+    void listRepoTree(sessionId, "")
       .then((items) => {
-        if (!canceled) setRepoTree(items);
+        if (!canceled) {
+          setRepoTree(items);
+          setChildrenByDir((m) => ({ ...m, [rootKey]: items }));
+        }
       })
       .catch(() => {
-        if (!canceled) setRepoTree([]);
-      });
-    return () => {
-      canceled = true;
-    };
-  }, [sessionId, activeTab, refreshNonce]);
-
-  useEffect(() => {
-    if (!sessionId || activeTab !== "context") {
-      setContextSnapshot(null);
-      setContextLoading(false);
-      setContextError(null);
-      return;
-    }
-    let canceled = false;
-    setContextLoading(true);
-    setContextError(null);
-    void getSessionContextDebug(sessionId)
-      .then((snapshot) => {
         if (!canceled) {
-          setContextSnapshot(snapshot);
-        }
-      })
-      .catch((error) => {
-        if (!canceled) {
-          setContextSnapshot(null);
-          setContextError(String(error));
-        }
-      })
-      .finally(() => {
-        if (!canceled) {
-          setContextLoading(false);
+          setRepoTree([]);
+          setChildrenByDir((m) => ({ ...m, [rootKey]: [] }));
         }
       });
     return () => {
       canceled = true;
     };
-  }, [sessionId, activeTab, traceVersion, refreshNonce]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId, refreshNonce]);
 
   const openFile = (path: string) => {
     if (!sessionId) return;
@@ -135,142 +113,163 @@ export function RightSidebar({ sessionId, traceVersion, pythonTodo = null }: Rig
       .catch(() => undefined);
   };
 
-  return (
-    <div className="flex h-full flex-col">
-      <div className="flex border-b border-border/50 bg-card/30">
-        <button
-          onClick={() => setActiveTab("files")}
-          className={cn(
-            "flex-1 px-3 py-2.5 text-xs font-medium transition-colors",
-            activeTab === "files"
-              ? "border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          文件树
-        </button>
-        <button
-          onClick={() => setActiveTab("memory")}
-          className={cn(
-            "flex-1 px-3 py-2.5 text-xs font-medium transition-colors",
-            activeTab === "memory"
-              ? "border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Memory
-        </button>
-        <button
-          onClick={() => setActiveTab("context")}
-          className={cn(
-            "flex-1 px-3 py-2.5 text-xs font-medium transition-colors",
-            activeTab === "context"
-              ? "border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Context
-        </button>
-        <button
-          onClick={() => setActiveTab("todo")}
-          className={cn(
-            "flex-1 px-3 py-2.5 text-xs font-medium transition-colors",
-            activeTab === "todo"
-              ? "border-b-2 border-primary text-foreground"
-              : "text-muted-foreground hover:text-foreground",
-          )}
-        >
-          Todo
-        </button>
-      </div>
+  const entriesByDir = useMemo(() => {
+    const map: Record<string, RepoTreeEntry[]> = {};
+    for (const entry of repoTree) {
+      const d = dirname(entry.path);
+      map[d] ??= [];
+      map[d].push(entry);
+    }
+    for (const key of Object.keys(map)) {
+      map[key].sort((a, b) => {
+        // dirs first
+        if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+        return a.displayName.localeCompare(b.displayName);
+      });
+    }
+    return map;
+  }, [repoTree]);
 
-      <div className="flex-1 overflow-hidden">
-        {activeTab === "files" ? (
-          <div className="grid h-full grid-cols-[220px_1fr] overflow-hidden">
-            <div className="overflow-y-auto border-r border-border/50 p-3">
-              <div className="mb-2 text-xs font-semibold text-muted-foreground">
-                文件浏览器
-              </div>
-              {!sessionId ? (
-                <div className="rounded-lg border border-dashed border-border/50 bg-card/30 p-4 text-center text-xs text-muted-foreground">
-                  请先选择会话
-                </div>
-              ) : repoTree.length === 0 ? (
-                <div className="rounded-lg border border-dashed border-border/50 bg-card/30 p-4 text-center text-xs text-muted-foreground">
-                  暂无文件
-                </div>
-              ) : (
-                repoTree.map((entry) => (
+  const loadDir = async (dirPath: string) => {
+    if (!sessionId) return;
+    if (childrenByDir[dirPath]) return;
+    const items = await listRepoTree(sessionId, dirPath);
+    setChildrenByDir((m) => ({ ...m, [dirPath]: items }));
+  };
+
+  const toggleDir = async (dirPath: string) => {
+    const next = new Set(expandedDirs);
+    if (next.has(dirPath)) {
+      next.delete(dirPath);
+      setExpandedDirs(next);
+      return;
+    }
+    await loadDir(dirPath);
+    next.add(dirPath);
+    setExpandedDirs(next);
+  };
+
+  const renderDir = (dirPath: string) => {
+    const items = childrenByDir[dirPath] ?? entriesByDir[dirPath] ?? [];
+    const indent = depth(dirPath);
+
+    return (
+      <div key={`dir-${dirPath}`}>
+        {dirPath !== rootKey ? (
+          <button
+            onClick={() => void toggleDir(dirPath)}
+            className={cn(
+              "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent/50",
+            )}
+            style={{ paddingLeft: `${8 + indent * 12}px` }}
+          >
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">
+                {expandedDirs.has(dirPath) ? "▾" : "▸"}
+              </span>
+              <span className="truncate text-foreground">
+                📁 {basename(dirPath)}
+              </span>
+            </div>
+          </button>
+        ) : null}
+
+        {(dirPath === rootKey || expandedDirs.has(dirPath)) && (
+          <div>
+            {items.map((entry) => {
+              const itemIndent = depth(entry.path);
+              if (entry.isDir) {
+                return (
                   <button
                     key={entry.path}
-                    onClick={() => {
-                      if (!entry.isDir) openFile(entry.path);
-                    }}
+                    onClick={() => void toggleDir(entry.path)}
                     className="w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent/50"
+                    style={{ paddingLeft: `${8 + itemIndent * 12}px` }}
                   >
                     <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground">
+                        {expandedDirs.has(entry.path) ? "▾" : "▸"}
+                      </span>
                       <span className="truncate text-foreground">
-                        {entry.isDir
-                          ? `📁 ${entry.displayName}`
-                          : entry.displayName}
+                        📁 {basename(entry.path)}
                       </span>
                     </div>
                   </button>
-                ))
-              )}
-            </div>
-
-            <div className="overflow-hidden p-3">
-              {!selectedPath ? (
-                <div className="rounded-lg border border-dashed border-border/50 bg-card/30 p-4 text-center text-xs text-muted-foreground">
-                  请选择一个文件预览
-                </div>
-              ) : loadingFile ? (
-                <div className="rounded-lg border border-dashed border-border/50 bg-card/30 p-4 text-center text-xs text-muted-foreground">
-                  读取文件中...
-                </div>
-              ) : (
-                <div className="flex h-full flex-col gap-2">
-                  <div className="flex items-center justify-between text-xs text-muted-foreground">
-                    <span className="truncate">{filePreview?.path}</span>
-                    <button
-                      className="rounded border border-border/50 px-2 py-1 hover:bg-accent"
-                      onClick={saveFile}
-                    >
-                      保存
-                    </button>
+                );
+              }
+              return (
+                <button
+                  key={entry.path}
+                  onClick={() => openFile(entry.path)}
+                  className={cn(
+                    "w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent/50",
+                    selectedPath === entry.path ? "bg-accent/40" : "",
+                  )}
+                  style={{ paddingLeft: `${8 + itemIndent * 12}px` }}
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">•</span>
+                    <span className="truncate text-foreground">{basename(entry.path)}</span>
                   </div>
-                  <textarea
-                    className="h-full w-full resize-none rounded border border-border/50 bg-background p-3 font-mono text-xs"
-                    value={draftContent}
-                    onChange={(e) => setDraftContent(e.target.value)}
-                  />
-                </div>
-              )}
-            </div>
+                </button>
+              );
+            })}
           </div>
-        ) : activeTab === "memory" ? (
-          <MemoryPanel
-            sessionId={sessionId}
-            refreshToken={`${refreshNonce}:${traceVersion ?? "none"}`}
-          />
-        ) : activeTab === "context" ? (
-          <ContextPanel
-            sessionId={sessionId}
-            snapshot={contextSnapshot}
-            loading={contextLoading}
-            errorText={contextError}
-          />
-        ) : activeTab === "todo" ? (
-          <PythonTodoPanel todo={pythonTodo} />
-        ) : (
-          <ContextPanel
-            sessionId={sessionId}
-            snapshot={contextSnapshot}
-            loading={contextLoading}
-            errorText={contextError}
-          />
         )}
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex items-center justify-between border-b border-border/50 bg-card/30 px-3 py-2">
+        <div className="text-xs font-semibold text-foreground">文件树</div>
+        <div className="text-[11px] text-muted-foreground">
+          {sessionId ? "" : "请先选择会话"}
+        </div>
+      </div>
+
+      <div className="flex-1 overflow-hidden">
+        <div className="grid h-full grid-cols-[260px_1fr] overflow-hidden">
+          <div className="overflow-y-auto border-r border-border/50 p-3">
+            {sessionId && (childrenByDir[rootKey]?.length ?? 0) === 0 ? (
+              <div className="rounded-lg border border-dashed border-border/50 bg-card/30 p-4 text-center text-xs text-muted-foreground">
+                暂无文件
+              </div>
+            ) : (
+              renderDir(rootKey)
+            )}
+          </div>
+
+          <div className="overflow-hidden p-3">
+            {!selectedPath ? (
+              <div className="rounded-lg border border-dashed border-border/50 bg-card/30 p-4 text-center text-xs text-muted-foreground">
+                请选择一个文件预览
+              </div>
+            ) : loadingFile ? (
+              <div className="rounded-lg border border-dashed border-border/50 bg-card/30 p-4 text-center text-xs text-muted-foreground">
+                读取文件中...
+              </div>
+            ) : (
+              <div className="flex h-full flex-col gap-2">
+                <div className="flex items-center justify-between text-xs text-muted-foreground">
+                  <span className="truncate">{filePreview?.path}</span>
+                  <button
+                    className="rounded border border-border/50 px-2 py-1 hover:bg-accent"
+                    onClick={saveFile}
+                  >
+                    保存
+                  </button>
+                </div>
+                <textarea
+                  className="h-full w-full resize-none rounded border border-border/50 bg-background p-3 font-mono text-xs"
+                  value={draftContent}
+                  onChange={(e) => setDraftContent(e.target.value)}
+                />
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

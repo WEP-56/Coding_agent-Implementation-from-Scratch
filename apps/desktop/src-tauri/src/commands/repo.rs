@@ -22,19 +22,48 @@ pub(crate) fn build_repo_context(data: &crate::state::AppData, session_id: &str)
 }
 
 pub(crate) fn list_repo_tree_inner(repo_root: &str) -> Result<Vec<RepoTreeEntry>, String> {
+    list_repo_tree_at(repo_root, "")
+}
+
+pub(crate) fn list_repo_tree_at(repo_root: &str, rel_dir: &str) -> Result<Vec<RepoTreeEntry>, String> {
+    let rel_dir = rel_dir.trim().trim_matches('/');
+
     let root = std::path::PathBuf::from(repo_root);
+    let dir_path = if rel_dir.is_empty() {
+        root
+    } else {
+        safe_join_repo_path(repo_root, rel_dir)?
+    };
+
+    if !dir_path.is_dir() {
+        return Err("not a directory".into());
+    }
+
     let mut out: Vec<RepoTreeEntry> = vec![];
 
-    let read_dir = fs::read_dir(&root).map_err(|e| format!("read repo failed: {}", e))?;
+    let read_dir = fs::read_dir(&dir_path).map_err(|e| format!("read repo failed: {}", e))?;
     for entry in read_dir.flatten() {
         let name = entry.file_name().to_string_lossy().to_string();
+
+        // Hide noisy directories by default.
+        if matches!(name.as_str(), ".git" | "node_modules" | "target" | ".codinggirl") {
+            continue;
+        }
+
         let Some(safe_name) = sanitize_repo_entry_name(&name) else {
             continue;
         };
         let path = entry.path();
         let meta = path.metadata().ok();
+
+        let rel_path = if rel_dir.is_empty() {
+            name.clone()
+        } else {
+            format!("{}/{}", rel_dir, name)
+        };
+
         out.push(RepoTreeEntry {
-            path: name,
+            path: rel_path,
             display_name: safe_name,
             is_dir: path.is_dir(),
             size: meta.and_then(|m| if m.is_file() { Some(m.len()) } else { None }),

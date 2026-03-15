@@ -351,12 +351,14 @@ pub fn remove_plugin(plugin_id: String, state: State<'_, AppState>) -> Result<()
 #[tauri::command]
 pub fn list_repo_tree(
     session_id: String,
+    path: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<Vec<RepoTreeEntry>, String> {
     let data = state.data.lock().map_err(|e| e.to_string())?;
     let repo_path = session_repo_path(&data, &session_id)?;
     drop(data);
-    list_repo_tree_inner(&repo_path)
+    let dir = path.unwrap_or_default();
+    crate::commands::repo::list_repo_tree_at(&repo_path, &dir)
 }
 
 #[tauri::command]

@@ -521,12 +521,13 @@ export async function removePlugin(pluginId: string): Promise<void> {
 
 export async function listRepoTree(
   sessionId: string,
+  path?: string,
 ): Promise<RepoTreeEntry[]> {
   if (!isTauriRuntime()) return [];
   return invokeCompat<RepoTreeEntry[]>(
     "list_repo_tree",
-    { sessionId },
-    { session_id: sessionId },
+    { sessionId, path },
+    { session_id: sessionId, path },
   );
 }
 
