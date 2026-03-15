@@ -1,0 +1,266 @@
+﻿{
+  "root": "E:\\coding agent",
+  "markerCount": 10,
+  "findingCount": 11,
+  "pythonEventKindsTop": [
+    [
+      "llm_response",
+      4
+    ],
+    [
+      "loop_complete",
+      4
+    ],
+    [
+      "loop_error",
+      4
+    ],
+    [
+      "loop_iteration",
+      4
+    ],
+    [
+      "loop_max_iterations",
+      4
+    ],
+    [
+      "todo_updated",
+      4
+    ],
+    [
+      "tool_parse_error",
+      4
+    ],
+    [
+      "todo_initialized",
+      3
+    ],
+    [
+      "class",
+      2
+    ],
+    [
+      "context_auto_compact",
+      2
+    ],
+    [
+      "context_micro_compact",
+      2
+    ],
+    [
+      "function",
+      2
+    ],
+    [
+      "hook_error",
+      2
+    ],
+    [
+      "verify_failed",
+      2
+    ],
+    [
+      "aborted",
+      1
+    ],
+    [
+      "applied",
+      1
+    ],
+    [
+      "async_function",
+      1
+    ],
+    [
+      "context_stats_update",
+      1
+    ],
+    [
+      "done",
+      1
+    ],
+    [
+      "llm_error",
+      1
+    ],
+    [
+      "llm_request",
+      1
+    ],
+    [
+      "patch_apply_failed",
+      1
+    ],
+    [
+      "patch_failed",
+      1
+    ],
+    [
+      "patch_review_failed",
+      1
+    ],
+    [
+      "patched",
+      1
+    ],
+    [
+      "planned",
+      1
+    ],
+    [
+      "run_created",
+      1
+    ],
+    [
+      "subagent_complete",
+      1
+    ],
+    [
+      "subagent_error",
+      1
+    ],
+    [
+      "subagent_max_iterations",
+      1
+    ],
+    [
+      "subagent_start",
+      1
+    ],
+    [
+      "tool_call",
+      1
+    ],
+    [
+      "tool_result",
+      1
+    ],
+    [
+      "variable",
+      1
+    ]
+  ],
+  "eventTypesConstants": [
+    "background:completed",
+    "background:failed",
+    "background:started",
+    "context:auto_compact",
+    "context:stats_update",
+    "loop:complete",
+    "loop:iteration",
+    "skill:loaded",
+    "subagent:completed",
+    "subagent:started",
+    "task:created",
+    "task:stats_update",
+    "task:unlocked",
+    "task:updated",
+    "todo:initialized",
+    "todo:stats_update",
+    "todo:task_completed"
+  ],
+  "findings": [
+    {
+      "kind": "MARKER:TODO",
+      "file": "README.md",
+      "line": 7,
+      "text": "当前正在推进的任务，请查看：TODO.md",
+      "meta": {}
+    },
+    {
+      "kind": "MARKER:TODO",
+      "file": "TODO.md",
+      "line": 1,
+      "text": "# TODO - 架构重构路线图",
+      "meta": {}
+    },
+    {
+      "kind": "MARKER:TODO",
+      "file": "TODO.md",
+      "line": 418,
+      "text": "## 附录：原有 TODO 保留项（待整合）",
+      "meta": {}
+    },
+    {
+      "kind": "MARKER:TODO",
+      "file": "TODO.md",
+      "line": 420,
+      "text": "以下是原 TODO 中有价值但未在新架构中明确的项目：",
+      "meta": {}
+    },
+    {
+      "kind": "MARKER:TODO",
+      "file": "scripts/audit_repo.py",
+      "line": 25,
+      "text": "MARKERS = (\"TODO\", \"FIXME\", \"HACK\")",
+      "meta": {}
+    },
+    {
+      "kind": "MARKER:FIXME",
+      "file": "scripts/audit_repo.py",
+      "line": 25,
+      "text": "MARKERS = (\"TODO\", \"FIXME\", \"HACK\")",
+      "meta": {}
+    },
+    {
+      "kind": "MARKER:HACK",
+      "file": "scripts/audit_repo.py",
+      "line": 25,
+      "text": "MARKERS = (\"TODO\", \"FIXME\", \"HACK\")",
+      "meta": {}
+    },
+    {
+      "kind": "MARKER:TODO",
+      "file": "codinggirl/core/event_types.py",
+      "line": 17,
+      "text": "TODO_INITIALIZED = \"todo:initialized\"  # Todo 列表初始化",
+      "meta": {}
+    },
+    {
+      "kind": "MARKER:TODO",
+      "file": "codinggirl/core/event_types.py",
+      "line": 18,
+      "text": "TODO_TASK_COMPLETED = \"todo:task_completed\"  # 任务完成",
+      "meta": {}
+    },
+    {
+      "kind": "MARKER:TODO",
+      "file": "codinggirl/core/event_types.py",
+      "line": 19,
+      "text": "TODO_STATS_UPDATE = \"todo:stats_update\"  # 每轮迭代结束时的统计更新",
+      "meta": {}
+    },
+    {
+      "kind": "ARCH:EVENT_SEMANTICS_DIVERGED",
+      "file": "codinggirl/core/event_types.py",
+      "line": null,
+      "text": "event_types.py defines colon-style event types (context:stats_update), but runtime persistence/desktop stream uses underscore kinds (context_stats_update).",
+      "meta": {
+        "event_types_sample": [
+          "background:completed",
+          "background:failed",
+          "background:started",
+          "context:auto_compact",
+          "context:stats_update",
+          "loop:complete",
+          "loop:iteration",
+          "skill:loaded",
+          "subagent:completed",
+          "subagent:started"
+        ],
+        "python_kinds_sample": [
+          "llm_response",
+          "loop_complete",
+          "loop_error",
+          "loop_iteration",
+          "loop_max_iterations",
+          "todo_updated",
+          "tool_parse_error",
+          "todo_initialized",
+          "class",
+          "context_auto_compact"
+        ]
+      }
+    }
+  ]
+}
