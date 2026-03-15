@@ -62,6 +62,7 @@ CodingGirl 的 AI IDE 形态应具备以下闭环：
 - [x] P1-1：右侧 Sidebar 增加 Python Todo 面板（状态统计 + 列表）。
   - 实现：Desktop `RightSidebar` 新增 Todo tab，展示 `pythonTodo`（来自 workflow snapshot）。
 - P1-2：Context Stats 面板（token/compact/tool results/节省量），并能一键导出 context debug。
+  - 进行中：已加入“Context token limit”配置（Settings → Model Config），并把该阈值下发到 Python agent 的 `--token-threshold`。
 - P1-3：Background tasks 面板（running/completed、stdout/stderr 可查看、可取消）。
 - P1-4：Subagent trace 层级展示（可折叠）。
 - P1-5：Task Graph 可视化（先列表/简图，后 DAG）。
