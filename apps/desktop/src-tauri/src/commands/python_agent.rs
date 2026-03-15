@@ -214,7 +214,7 @@ fn should_emit_snapshot(kind: &str) -> bool {
         kind,
         "todo_initialized"
             | "todo_updated"
-            | "context_stats_update"
+            // Snapshot on compaction/subagent/loop boundaries only.
             | "context_auto_compact"
             | "subagent_start"
             | "subagent_complete"
@@ -712,6 +712,65 @@ pub async fn run_python_agent_message(
                                 };
 
                                 data.python_todos.insert(session_id2.clone(), todo_state);
+                            }
+                        }
+
+                        // Low-noise context stats channel for the usage ring.
+                        if kind == "context_stats_update" {
+                            // Only update state if values materially change (reduces UI churn).
+                            let estimated = payload
+                                .get("estimatedTokens")
+                                .and_then(|v| v.as_i64())
+                                .unwrap_or(0);
+                            let threshold = payload
+                                .get("threshold")
+                                .and_then(|v| v.as_i64())
+                                .unwrap_or(0);
+                            let compact_count = payload
+                                .get("compactCount")
+                                .and_then(|v| v.as_i64())
+                                .unwrap_or(0);
+                            let tool_result_count = payload
+                                .get("toolResultCount")
+                                .and_then(|v| v.as_i64())
+                                .unwrap_or(0);
+                            let message_count = payload
+                                .get("messageCount")
+                                .and_then(|v| v.as_i64())
+                                .unwrap_or(0);
+
+                            let prev = data.python_context_stats.get(&session_id2).cloned();
+                            let should_update = match prev {
+                                None => true,
+                                Some(p) => {
+                                    // Update if token estimate moved by >= 256 tokens, or the ring crosses 70%/90%, or any counters changed.
+                                    let delta = (p.estimated_tokens - estimated).abs();
+                                    let p70 = p.estimated_tokens as f64 / (p.threshold.max(1) as f64) >= 0.70;
+                                    let n70 = estimated as f64 / (threshold.max(1) as f64) >= 0.70;
+                                    let p90 = p.estimated_tokens as f64 / (p.threshold.max(1) as f64) >= 0.90;
+                                    let n90 = estimated as f64 / (threshold.max(1) as f64) >= 0.90;
+                                    delta >= 256
+                                        || p70 != n70
+                                        || p90 != n90
+                                        || p.compact_count != compact_count
+                                        || p.tool_result_count != tool_result_count
+                                        || p.message_count != message_count
+                                        || p.threshold != threshold
+                                }
+                            };
+
+                            if should_update {
+                                data.python_context_stats.insert(
+                                    session_id2.clone(),
+                                    crate::state::PythonContextStatsState {
+                                        updated_at: ts.clone(),
+                                        estimated_tokens: estimated,
+                                        threshold,
+                                        compact_count,
+                                        tool_result_count,
+                                        message_count,
+                                    },
+                                );
                             }
                         }
 

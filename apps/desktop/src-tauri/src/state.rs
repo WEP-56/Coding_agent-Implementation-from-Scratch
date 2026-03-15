@@ -576,6 +576,17 @@ pub struct PythonTodoStats {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+pub struct PythonContextStatsState {
+    pub updated_at: String,
+    pub estimated_tokens: i64,
+    pub threshold: i64,
+    pub compact_count: i64,
+    pub tool_result_count: i64,
+    pub message_count: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct PythonTodoItem {
     pub step_id: String,
     pub title: String,
@@ -619,6 +630,9 @@ pub struct AppData {
     #[serde(rename = "pythonTodos")]
     #[serde(default)]
     pub python_todos: HashMap<String, PythonTodoState>,
+    #[serde(rename = "pythonContextStats")]
+    #[serde(default)]
+    pub python_context_stats: HashMap<String, PythonContextStatsState>,
     #[serde(rename = "chatHistory")]
     pub chat_history: HashMap<String, Vec<ChatTurn>>,
     #[serde(rename = "chatSummary")]
@@ -968,6 +982,7 @@ impl Default for AppData {
             logs,
             artifacts,
             python_todos: HashMap::new(),
+            python_context_stats: HashMap::new(),
             chat_history: HashMap::new(),
             chat_summary: HashMap::new(),
             memories: HashMap::new(),
