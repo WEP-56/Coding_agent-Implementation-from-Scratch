@@ -25,6 +25,11 @@ def _truncate(text: str, max_len: int) -> str:
 
 
 def _messages_to_payload_tools(messages: list[ChatMessage]) -> list[dict[str, object]]:
+    return _messages_to_payload(messages)
+
+
+def _messages_to_payload(messages: list[ChatMessage]) -> list[dict[str, object]]:
+    """Public test helper: OpenAI tools-mode message mapping."""
     out: list[dict[str, object]] = []
     for m in messages:
         item: dict[str, object] = {"role": m.role, "content": m.content}
@@ -78,6 +83,11 @@ def _messages_to_payload_legacy(messages: list[ChatMessage]) -> list[dict[str, o
 
 
 def _tools_to_payload_tools(tools: list[ToolSchema]) -> list[dict[str, object]]:
+    return _tools_to_payload(tools)
+
+
+def _tools_to_payload(tools: list[ToolSchema]) -> list[dict[str, object]]:
+    """Public test helper: OpenAI tools-mode tool schema mapping."""
     return [
         {
             "type": "function",

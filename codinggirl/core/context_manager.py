@@ -122,11 +122,13 @@ class ContextManager:
         # 生成摘要
         summary = self._generate_summary(messages, llm)
 
-        # 保留 system prompt（如果有）和最后一条消息
+        # 保留 system prompt（如果有）
         system_msg = None
         if messages and messages[0].role == "system":
             system_msg = messages[0]
 
+        # Tail preservation: keep a small window, but allow dropping it if it would
+        # prevent any real compaction (common in small test cases).
         tail_msgs = self._tail_preserving_tool_pairs(messages)
 
         # 构建压缩后的 messages
@@ -143,11 +145,33 @@ class ContextManager:
             )
         )
 
-        # 保留 tail messages，避免将 tool output 与 tool_call 分离，导致 OpenAI-compatible 400
+        # 先按“保留 tool pair 的尾部”策略追加
         for msg in tail_msgs:
             if msg.role == "system":
                 continue
             compacted.append(msg)
+
+        # 如果压缩后 token 反而更大，说明 tail 保留窗口太大（或摘要太长）。
+        # 这里做一个保守降级：只保留 system + summary + 最后一条 user/assistant 消息。
+        if self.estimate_tokens(compacted) >= token_count:
+            compacted = []
+            if system_msg:
+                compacted.append(system_msg)
+            compacted.append(
+                ChatMessage(
+                    role="system",
+                    content=f"## Conversation Summary (auto-compacted)\n\n{summary}",
+                )
+            )
+            last_non_system = None
+            for msg in reversed(messages):
+                if msg.role != "system":
+                    last_non_system = msg
+                    break
+            if last_non_system is not None:
+                # Don't keep orphaned tool results
+                if last_non_system.role != "tool":
+                    compacted.append(last_non_system)
 
         self.compact_count += 1
 

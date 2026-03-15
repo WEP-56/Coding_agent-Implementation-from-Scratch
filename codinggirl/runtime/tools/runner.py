@@ -45,12 +45,14 @@ class ToolRunner:
             spec_error = f"unknown tool: {tool_name}"
 
         validated_args: dict[str, Any] = dict(args)
-        try:
-            validated = validate_object(spec.input_schema, dict(args)).value if spec else None
-        except SchemaValidationError as e:
-            validation_error = str(e)
-        else:
-            validation_error = None
+        validated: Any = None
+        validation_error: str | None = None
+
+        if spec is not None:
+            try:
+                validated = validate_object(spec.input_schema, dict(args)).value
+            except SchemaValidationError as e:
+                validation_error = str(e)
 
         if isinstance(validated, dict):
             validated_args = validated
