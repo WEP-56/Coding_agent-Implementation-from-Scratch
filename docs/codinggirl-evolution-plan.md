@@ -127,6 +127,14 @@ CodingGirl 的 AI IDE 形态应具备以下闭环：
 
 ---
 
-## 6. 当前开始执行的第一步
+## 6. 当前开始执行的第一步（已完成）
 
-我会先实现 **P0-1：Windows 下启动 Python 的 fallback（`python` → `py`）**，这是桌面端稳定运行 Python agent 的基础。
+- [x] **P0-1：Windows 下启动 Python 的 fallback（`python` → `py`）**，这是桌面端稳定运行 Python agent 的基础。
+  - 实现：Tauri Rust 侧 `run_python_agent_message` 启动命令增加 `py` fallback。
+  - 验证：`apps/desktop/src-tauri` 下 `cargo test` 通过。
+
+## 7. 当前开始执行的第二步（进行中 / 下一步）
+
+- [ ] **P0-2：事件语义收敛（Python JSONL kind ↔ Desktop trace title）**
+  - 目标：让 Python agent 的关键事件（todo/context/subagent/background/loop）在 Desktop 的 workflow/trace 中呈现为一致的、可筛选的 canonical 项。
+  - 方法：先补一份映射表（单一事实源），再按映射表逐个完善 emit 与展示。
