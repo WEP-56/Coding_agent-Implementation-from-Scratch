@@ -194,6 +194,7 @@ fn map_kind_to_trace_title(kind: &str) -> (&'static str, &'static str) {
         // Todo / context (shown as canonical context items)
         "todo_initialized" => ("trace.context.todo_initialized", "session"),
         "todo_updated" => ("trace.context.todo_updated", "session"),
+        "context_stats_update" => ("python.context.stats", "session"),
         "context_micro_compact" => ("trace.context.micro_compact", "session"),
         "context_auto_compact" => ("trace.context.compacted", "session"),
 
@@ -213,6 +214,7 @@ fn should_emit_snapshot(kind: &str) -> bool {
         kind,
         "todo_initialized"
             | "todo_updated"
+            | "context_stats_update"
             | "context_auto_compact"
             | "subagent_start"
             | "subagent_complete"

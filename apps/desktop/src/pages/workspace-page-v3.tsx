@@ -36,6 +36,7 @@ import { useAppStore } from "../store/app-store";
 import { useSessionStore } from "../store/session-store";
 import { useUiStore } from "../store/ui-store";
 import type {
+  PythonContextStats,
   PythonTodoState,
   SessionMode,
   SessionRun,
@@ -76,6 +77,7 @@ export function WorkspacePageV3() {
   const [sessionRuns, setSessionRuns] = useState<SessionRun[]>([]);
   const [sessionTurns, setSessionTurns] = useState<SessionTurn[]>([]);
   const [pythonTodo, setPythonTodo] = useState<PythonTodoState | null>(null);
+  const [pythonContext, setPythonContext] = useState<PythonContextStats | null>(null);
   const currentSessionIdRef = useRef<string | null>(currentSessionId);
 
   const currentSession = sessions.find((s) => s.id === currentSessionId);
@@ -128,6 +130,7 @@ export function WorkspacePageV3() {
       setSessionRuns(event.sessionRuns);
       setSessionTurns(event.sessionTurns);
       setPythonTodo(event.pythonTodo ?? null);
+      setPythonContext(event.pythonContext ?? null);
     }).then((unlisten) => {
       if (!active) {
         unlisten();
@@ -517,6 +520,7 @@ export function WorkspacePageV3() {
             sessionRuns={sessionRuns}
             sessionTurns={sessionTurns}
             pythonTodo={pythonTodo}
+            pythonContext={pythonContext}
             currentMode={currentSession?.mode ?? "build"}
             isRunning={isLoadingTimeline}
             onSend={handleSend}

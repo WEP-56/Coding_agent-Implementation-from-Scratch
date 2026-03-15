@@ -12,6 +12,7 @@ import type {
   ChatMessage,
   DiffFile,
   LogItem,
+  PythonContextStats,
   SessionMode,
   PythonTodoState,
   SessionRun,
@@ -34,6 +35,7 @@ interface ChatAreaProps {
   sessionRuns?: SessionRun[];
   sessionTurns?: SessionTurn[];
   pythonTodo?: PythonTodoState | null;
+  pythonContext?: PythonContextStats | null;
   currentMode: SessionMode;
   isRunning: boolean;
   onSend: (text: string, mode: SessionMode) => void;
@@ -169,6 +171,7 @@ export function ChatArea({
   sessionRuns = [],
   sessionTurns = [],
   pythonTodo = null,
+  pythonContext = null,
   currentMode,
   isRunning,
   onSend,
@@ -421,8 +424,8 @@ export function ChatArea({
           <div className="flex gap-3">
             <div className="flex flex-col justify-end pb-1">
               <ContextUsageRing
-                estimatedTokens={pythonTodo?.stats?.contextTokens ?? 0}
-                limitTokens={settings.model.contextTokenLimit ?? 16000}
+                estimatedTokens={pythonContext?.estimatedTokens ?? pythonTodo?.stats?.contextTokens ?? 0}
+                limitTokens={pythonContext?.threshold ?? settings.model.contextTokenLimit ?? 16000}
               />
             </div>
             <textarea

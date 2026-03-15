@@ -202,6 +202,23 @@ class AgentLoopWithSubagent:
                     payload={"iteration": iterations, "message_count": len(messages)},
                 )
 
+                # Context stats update (low-noise, every loop iteration)
+                if context_manager:
+                    stats = context_manager.get_stats(messages)
+                    self.store.append_event(
+                        run_id=run_id,
+                        kind="context_stats_update",
+                        ts=utc_now_iso(),
+                        payload={
+                            "iteration": iterations,
+                            "estimatedTokens": stats.token_count,
+                            "threshold": context_manager.token_threshold,
+                            "compactCount": stats.compact_count,
+                            "toolResultCount": stats.tool_result_count,
+                            "messageCount": stats.message_count,
+                        },
+                    )
+
                 # Context Management: Micro-compact
                 if context_manager and iterations > 1:
                     messages, compact_stats = context_manager.micro_compact(messages)

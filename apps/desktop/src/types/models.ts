@@ -102,6 +102,15 @@ export interface PythonTodoState {
   turnId?: string | null;
 }
 
+export interface PythonContextStats {
+  updatedAt: string;
+  estimatedTokens: number;
+  threshold: number;
+  compactCount: number;
+  toolResultCount: number;
+  messageCount: number;
+}
+
 export interface SessionWorkflowSnapshotEvent {
   sessionId: string;
   reason: string;
@@ -117,6 +126,7 @@ export interface SessionWorkflowSnapshotEvent {
   sessionTurns: SessionTurn[];
   pendingApprovals: ApprovalRequest[];
   pythonTodo?: PythonTodoState | null;
+  pythonContext?: PythonContextStats | null;
 }
 
 export interface ContextBudgetStats {

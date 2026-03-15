@@ -2,6 +2,17 @@ use crate::state::{
     ApprovalRequest, AppData, AppState, ArtifactItem, DiffFile, LogItem, PythonTodoState, SessionRun,
     SessionTurn, TimelineStep, ToolCallItem,
 };
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PythonContextStats {
+    pub updated_at: String,
+    pub estimated_tokens: i64,
+    pub threshold: i64,
+    pub compact_count: i64,
+    pub tool_result_count: i64,
+    pub message_count: i64,
+}
 use serde::Serialize;
 use std::time::{SystemTime, UNIX_EPOCH};
 use tauri::{AppHandle, Emitter};
@@ -37,6 +48,8 @@ pub struct SessionWorkflowSnapshotEvent {
     pub pending_approvals: Vec<ApprovalRequest>,
     #[serde(default)]
     pub python_todo: Option<PythonTodoState>,
+    #[serde(default)]
+    pub python_context: Option<PythonContextStats>,
 }
 
 fn event_timestamp() -> String {
@@ -102,6 +115,23 @@ pub fn emit_session_workflow_snapshot(
 
     let python_todo = data.python_todos.get(session_id).cloned();
 
+    let python_context = data
+        .session_events
+        .get(session_id)
+        .and_then(|events| events.iter().rev().find(|e| e.title == "python.context.stats"))
+        .and_then(|e| {
+            let detail = e.detail.as_deref().unwrap_or("");
+            let v: serde_json::Value = serde_json::from_str(detail).ok()?;
+            Some(PythonContextStats {
+                updated_at: e.ts.clone(),
+                estimated_tokens: v.get("estimatedTokens").and_then(|x| x.as_i64()).unwrap_or(0),
+                threshold: v.get("threshold").and_then(|x| x.as_i64()).unwrap_or(0),
+                compact_count: v.get("compactCount").and_then(|x| x.as_i64()).unwrap_or(0),
+                tool_result_count: v.get("toolResultCount").and_then(|x| x.as_i64()).unwrap_or(0),
+                message_count: v.get("messageCount").and_then(|x| x.as_i64()).unwrap_or(0),
+            })
+        });
+
     app.emit(
         SESSION_WORKFLOW_SNAPSHOT_EVENT,
         SessionWorkflowSnapshotEvent {
@@ -119,6 +149,7 @@ pub fn emit_session_workflow_snapshot(
             session_turns,
             pending_approvals,
             python_todo,
+            python_context,
         },
     )
     .map_err(|e| format!("emit session workflow snapshot failed: {}", e))
