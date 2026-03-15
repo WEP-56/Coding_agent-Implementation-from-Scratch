@@ -694,6 +694,7 @@ pub async fn run_python_agent_message(
                                             pending: 0,
                                             in_progress: 0,
                                             completed: 0,
+                                            context_tokens: 0,
                                         },
                                     ),
                                     items: items

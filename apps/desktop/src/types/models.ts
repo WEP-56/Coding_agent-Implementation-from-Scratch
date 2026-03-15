@@ -82,6 +82,8 @@ export interface PythonTodoStats {
   pending: number;
   inProgress: number;
   completed: number;
+  /** Estimated context tokens reported by the Python agent (best-effort). */
+  contextTokens?: number;
 }
 
 export interface PythonTodoItem {

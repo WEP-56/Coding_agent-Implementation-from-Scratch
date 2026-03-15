@@ -89,16 +89,27 @@ class AgentLoopWithSubagent:
             metadata={"goal": user_goal, "repo_root": self.repo_root},
         )
 
+        # 初始化 ContextManager
+        context_manager: ContextManager | None = None
+        if self.config.enable_context_management:
+            context_manager = ContextManager(
+                keep_recent_results=self.config.keep_recent_results,
+                token_threshold=self.config.token_threshold,
+            )
+
         # 初始化 TodoManager
         todo_manager: TodoManager | None = None
         if self.config.enable_todo and initial_plan:
             todo_manager = TodoManager.from_plan(initial_plan)
+            stats = todo_manager.get_stats()
+            if context_manager is not None:
+                stats = {**stats, "contextTokens": context_manager.estimate_tokens(messages)}
             self.store.append_event(
                 run_id=run_id,
                 kind="todo_initialized",
                 ts=utc_now_iso(),
                 payload={
-                    "stats": todo_manager.get_stats(),
+                    "stats": stats,
                     "items": [
                         {
                             "stepId": item.step_id,
@@ -110,14 +121,6 @@ class AgentLoopWithSubagent:
                     ],
                     "rendered": todo_manager.render_for_prompt(),
                 },
-            )
-
-        # 初始化 ContextManager
-        context_manager: ContextManager | None = None
-        if self.config.enable_context_management:
-            context_manager = ContextManager(
-                keep_recent_results=self.config.keep_recent_results,
-                token_threshold=self.config.token_threshold,
             )
 
         # 初始化 SubagentRunner
@@ -332,12 +335,15 @@ class AgentLoopWithSubagent:
 
                     if tc.name == "todo_update" and result.ok and todo_manager:
                         todo_manager.mark_updated(iterations)
+                        stats = todo_manager.get_stats()
+                        if context_manager is not None:
+                            stats = {**stats, "contextTokens": context_manager.estimate_tokens(messages)}
                         self.store.append_event(
                             run_id=run_id,
                             kind="todo_updated",
                             ts=utc_now_iso(),
                             payload={
-                                "stats": todo_manager.get_stats(),
+                                "stats": stats,
                                 "items": [
                                     {
                                         "stepId": item.step_id,

@@ -570,6 +570,8 @@ pub struct PythonTodoStats {
     pub pending: i64,
     pub in_progress: i64,
     pub completed: i64,
+    #[serde(default, rename = "contextTokens")]
+    pub context_tokens: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

@@ -19,6 +19,8 @@ import type {
   TimelineStep,
   ToolCallItem,
 } from "../../types/models";
+import { useSettingsStore } from "../../store/settings-store";
+import { ContextUsageRing } from "./context-usage-ring";
 import { WorkflowRunCard } from "./workflow-run-card";
 
 interface ChatAreaProps {
@@ -178,6 +180,7 @@ export function ChatArea({
   const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>(
     [],
   );
+  const settings = useSettingsStore((s) => s.settings);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const transcript = useMemo(
@@ -416,6 +419,12 @@ export function ChatArea({
           ) : null}
 
           <div className="flex gap-3">
+            <div className="flex flex-col justify-end pb-1">
+              <ContextUsageRing
+                estimatedTokens={pythonTodo?.stats?.contextTokens ?? 0}
+                limitTokens={settings.model.contextTokenLimit ?? 16000}
+              />
+            </div>
             <textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
