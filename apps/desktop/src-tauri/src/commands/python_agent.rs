@@ -378,7 +378,17 @@ pub async fn run_python_agent_message(
             let provider = normalize_provider(&settings);
             let llm_timeout_sec = settings.model.timeout_sec.unwrap_or(180).clamp(10, 900);
 
-            let mut cmd = Command::new("python");
+            // Prefer `python` but fall back to the Windows launcher `py`.
+            // Many Windows setups only have `py.exe` available on PATH.
+            let mut cmd = if cfg!(windows) {
+                if Command::new("python").arg("--version").output().is_ok() {
+                    Command::new("python")
+                } else {
+                    Command::new("py")
+                }
+            } else {
+                Command::new("python")
+            };
 
             // Ensure the workspace root (which contains the `codinggirl/` package) is importable.
             // The `repo_root` can be a sub-project (e.g. .../apps/desktop), so walking upward is safer.

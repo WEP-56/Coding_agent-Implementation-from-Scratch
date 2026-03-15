@@ -1030,11 +1030,13 @@ mod tests {
             notifications_enabled: true,
             default_session_mode: "build".into(),
             default_theme: "dark".into(),
+            output_style: None,
             model: crate::state::ModelConfig {
                 provider: crate::state::Provider::Mock,
                 model: "local-model".into(),
                 base_url: "http://localhost:8317".into(),
                 api_key: "token".into(),
+                timeout_sec: None,
             },
             rules_by_repo: std::collections::HashMap::new(),
         };
