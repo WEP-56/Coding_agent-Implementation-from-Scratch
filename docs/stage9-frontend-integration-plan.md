@@ -25,7 +25,7 @@ UI Components
 #### Context Management 事件
 - `context:micro_compact` - Micro-compact 执行
 - `context:auto_compact` - Auto-compact 执行
-- `context:stats_update` - 上下文统计更新
+- `context_stats_update` - 上下文统计更新
 
 #### Todo 事件
 - `todo:initialized` - Todo 列表初始化
@@ -147,7 +147,7 @@ async fn get_background_tasks() -> Result<Vec<BackgroundTask>, String> {
 - 显示 compact 次数
 - 显示节省的 tokens
 
-**数据源**：`context:stats_update` 事件
+**数据源**：`context_stats_update` 事件
 
 #### 3.1.2 Todo List Panel
 **位置**：右侧边栏

@@ -12,7 +12,7 @@
 
 ### A1) 事件体系分裂：`event_types.py`（colon 风格） vs runtime JSONL `kind`（underscore 风格）
 - 现象：
-  - `codinggirl/core/event_types.py` 定义了如 `context:stats_update`、`todo:initialized`、`loop:iteration` 这类 **colon 风格 event_type**。
+  - `codinggirl/core/event_types.py` 曾定义 `context:stats_update`、`todo:initialized`、`loop:iteration` 这类 **colon 风格 event_type**（现已开始向 underscore kind 收敛）。
   - 但实际 Python runtime 持久化/桌面流（SQLiteStore/JSONL）使用的关键字段是 `kind="loop_iteration" / "context_stats_update" / "todo_updated" ...` 这种 **underscore 风格 kind**。
   - `codinggirl/core/event_bus.py` 这套 EventBus（event_type/publish-subscribe）目前几乎没有被 runtime 主链路使用。
 - 风险：

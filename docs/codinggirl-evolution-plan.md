@@ -97,7 +97,7 @@ CodingGirl 的 AI IDE 形态应具备以下闭环：
 ### Week 1：P0-1 + P0-2
 1) 修复 Desktop 启动 Python 的鲁棒性（Windows `py` fallback）。
 2) 为 Python agent 增加“低噪声但关键”的事件：
-   - `context:stats_update` / `todo:stats_update` / `loop:iteration` / `loop:complete`
+   - `context_stats_update` / `todo_updated` / `loop_iteration` / `loop_complete`
    - 并在 Rust 侧把这些事件映射为 canonical trace items。
 3) 加 1 个端到端 smoke：从 Desktop 发起 python_agent run，产生 todo + context compact + tool call，然后导出 trace bundle。
 

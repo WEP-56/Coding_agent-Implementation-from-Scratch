@@ -20,7 +20,7 @@
 
 **示例**：
 ```python
-# context:stats_update
+# context_stats_update
 {
     "message_count": 25,
     "token_count": 12500,
@@ -39,7 +39,7 @@
 
 ### Context Management (2 种)
 1. `context:auto_compact` - Auto-compact 执行（重要事件）
-2. `context:stats_update` - 每轮迭代结束时的统计更新
+2. `context_stats_update` - 每轮迭代结束时的统计更新
 
 ### Todo (3 种)
 1. `todo:initialized` - Todo 列表初始化
@@ -78,7 +78,7 @@
 **修改**：
 1. 添加 `run_id` 参数到构造函数
 2. 在 `auto_compact()` 中发送 `context:auto_compact` 事件
-3. 添加 `emit_stats()` 方法，发送 `context:stats_update` 事件
+3. 添加 `emit_stats()` 方法，发送 `context_stats_update` 事件
 
 **代码示例**：
 ```python
@@ -246,7 +246,7 @@ except Exception as e:
 
 完成后，运行一个简单的 Agent Loop（10 轮迭代），应该产生约 20-30 个事件：
 - 10 个 `loop:iteration` 事件
-- 10 个 `context:stats_update` 事件
+- 10 个 `context_stats_update` 事件
 - 10 个 `todo:stats_update` 事件
 - 1 个 `loop:complete` 事件
 - 若干个 `background:*` 或 `subagent:*` 事件（如果有）
