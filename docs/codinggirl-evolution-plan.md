@@ -59,7 +59,8 @@ CodingGirl 的 AI IDE 形态应具备以下闭环：
 目标：**把 Python runtime 的能力以 IDE 面板形式呈现**，做到“看得见、点得动、能纠偏”。
 
 交付项（按 UI 价值排序）：
-- P1-1：右侧 Sidebar 增加 Python Todo 面板（状态统计 + 列表）。
+- [x] P1-1：右侧 Sidebar 增加 Python Todo 面板（状态统计 + 列表）。
+  - 实现：Desktop `RightSidebar` 新增 Todo tab，展示 `pythonTodo`（来自 workflow snapshot）。
 - P1-2：Context Stats 面板（token/compact/tool results/节省量），并能一键导出 context debug。
 - P1-3：Background tasks 面板（running/completed、stdout/stderr 可查看、可取消）。
 - P1-4：Subagent trace 层级展示（可折叠）。
@@ -100,8 +101,8 @@ CodingGirl 的 AI IDE 形态应具备以下闭环：
 3) 加 1 个端到端 smoke：从 Desktop 发起 python_agent run，产生 todo + context compact + tool call，然后导出 trace bundle。
 
 ### Week 2：P1-1 + P1-2
-1) 右侧栏新增 Python Todo 面板：读取 `SessionWorkflowSnapshotEvent.pythonTodo`。
-2) Context Stats 面板：使用现有 `get_session_context_debug` + 新增统计事件（如有）。
+1) [x] 右侧栏新增 Python Todo 面板：读取 `SessionWorkflowSnapshotEvent.pythonTodo`。
+2) [ ] Context Stats 面板：使用现有 `get_session_context_debug` + 新增统计事件（如有）。
 
 ---
 

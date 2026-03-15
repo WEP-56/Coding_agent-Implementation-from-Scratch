@@ -12,18 +12,21 @@ import type {
   RepoFileContent,
   RepoTreeEntry,
   SessionContextDebugSnapshot,
+  PythonTodoState,
 } from "../../types/models";
 import { ContextPanel } from "./context-panel";
 import { MemoryPanel } from "./memory-panel";
+import { PythonTodoPanel } from "./python-todo-panel";
 
 interface RightSidebarProps {
   sessionId: string | null;
   traceVersion?: string;
+  pythonTodo?: PythonTodoState | null;
 }
 
-type TabType = "files" | "memory" | "context";
+type TabType = "files" | "memory" | "context" | "todo";
 
-export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
+export function RightSidebar({ sessionId, traceVersion, pythonTodo = null }: RightSidebarProps) {
   const [activeTab, setActiveTab] = useState<TabType>("files");
   const [repoTree, setRepoTree] = useState<RepoTreeEntry[]>([]);
   const [selectedPath, setSelectedPath] = useState<string | null>(null);
@@ -168,6 +171,17 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
         >
           Context
         </button>
+        <button
+          onClick={() => setActiveTab("todo")}
+          className={cn(
+            "flex-1 px-3 py-2.5 text-xs font-medium transition-colors",
+            activeTab === "todo"
+              ? "border-b-2 border-primary text-foreground"
+              : "text-muted-foreground hover:text-foreground",
+          )}
+        >
+          Todo
+        </button>
       </div>
 
       <div className="flex-1 overflow-hidden">
@@ -247,6 +261,8 @@ export function RightSidebar({ sessionId, traceVersion }: RightSidebarProps) {
             loading={contextLoading}
             errorText={contextError}
           />
+        ) : activeTab === "todo" ? (
+          <PythonTodoPanel todo={pythonTodo} />
         ) : (
           <ContextPanel
             sessionId={sessionId}

@@ -502,6 +502,7 @@ export function WorkspacePageV3() {
           rightSidebar={
             <RightSidebar
               sessionId={currentSessionId}
+              pythonTodo={pythonTodo}
               traceVersion={`${sessionTurns.length}:${sessionTurns[0]?.updatedAt ?? "empty"}:${timeline.length}:${timeline[0]?.status ?? "none"}`}
             />
           }
