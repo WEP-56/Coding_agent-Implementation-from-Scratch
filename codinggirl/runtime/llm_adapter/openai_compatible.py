@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import random
-import time
 import urllib.request
 from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
@@ -15,6 +13,11 @@ from codinggirl.runtime.llm_adapter.models import (
     LLMResponse,
     ToolCall,
     ToolSchema,
+)
+from codinggirl.runtime.llm_adapter.retry_handler import (
+    RetryConfig,
+    classify_error,
+    calculate_backoff_delay,
 )
 
 
@@ -245,6 +248,11 @@ class OpenAICompatibleProvider:
         tools: list[ToolSchema] | None = None,
         temperature: float = 0.0,
     ) -> LLMResponse:
+        """
+        调用 OpenAI 兼容的 API
+
+        使用统一的重试机制，支持自动降级到 legacy function calling
+        """
         base_url = self.config.base_url or "https://api.openai.com"
         endpoint = _build_chat_completions_endpoint(base_url)
 
@@ -252,111 +260,110 @@ class OpenAICompatibleProvider:
         if not api_key:
             raise ValueError("missing api key (config.api_key or OPENAI_API_KEY)")
 
-        max_attempts = int(os.environ.get("CODINGGIRL_LLM_MAX_ATTEMPTS", "3") or "3")
+        # 配置重试策略
+        max_attempts = int(os.environ.get("CODINGGIRL_LLM_MAX_ATTEMPTS", "5") or "5")
+        retry_config = RetryConfig(
+            max_attempts=max_attempts,
+            base_delay=0.5,
+            max_delay=16.0,
+        )
+
         use_legacy = False
+        last_error = None
 
-        for attempt in range(1, max_attempts + 1):
-            if use_legacy:
-                payload: dict[str, object] = {
-                    "model": self.config.model,
-                    "messages": _messages_to_payload_legacy(messages),
-                    "temperature": temperature,
-                }
-                if tools:
-                    payload["functions"] = _tools_to_payload_legacy(tools)
-                    payload["function_call"] = "auto"
-            else:
-                payload = {
-                    "model": self.config.model,
-                    "messages": _messages_to_payload_tools(messages),
-                    "temperature": temperature,
-                }
-                if tools:
-                    payload["tools"] = _tools_to_payload_tools(tools)
-                    payload["tool_choice"] = "auto"
-
-            body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
-            req = urllib.request.Request(
-                endpoint,
-                data=body,
-                method="POST",
-                headers={
-                    "Content-Type": "application/json",
-                    "Authorization": f"Bearer {api_key}",
-                },
-            )
-
+        for attempt in range(1, retry_config.max_attempts + 1):
             try:
+                # 构建 payload
+                if use_legacy:
+                    payload: dict[str, object] = {
+                        "model": self.config.model,
+                        "messages": _messages_to_payload_legacy(messages),
+                        "temperature": temperature,
+                    }
+                    if tools:
+                        payload["functions"] = _tools_to_payload_legacy(tools)
+                        payload["function_call"] = "auto"
+                else:
+                    payload = {
+                        "model": self.config.model,
+                        "messages": _messages_to_payload_tools(messages),
+                        "temperature": temperature,
+                    }
+                    if tools:
+                        payload["tools"] = _tools_to_payload_tools(tools)
+                        payload["tool_choice"] = "auto"
+
+                # 发送请求
+                body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+                req = urllib.request.Request(
+                    endpoint,
+                    data=body,
+                    method="POST",
+                    headers={
+                        "Content-Type": "application/json",
+                        "Authorization": f"Bearer {api_key}",
+                    },
+                )
+
                 with urllib.request.urlopen(req, timeout=self.config.timeout_sec) as resp:
                     raw = resp.read().decode("utf-8", errors="replace")
+
                 parsed = json.loads(raw)
                 if not isinstance(parsed, dict):
                     raise ValueError("invalid response: root is not object")
+
                 return _parse_openai_response(parsed)
 
-            except TimeoutError as e:
-                if attempt < max_attempts:
-                    _backoff_sleep(attempt)
-                    continue
-                summary = {
-                    "endpoint": endpoint,
-                    "reason": str(e),
-                    "model": str(self.config.model),
-                    "timeout_sec": int(self.config.timeout_sec),
-                    "tools_mode": "legacy" if use_legacy else "tools",
-                }
-                raise ValueError(
-                    "openai-compatible request failed: " + json.dumps(summary, ensure_ascii=False)
-                ) from None
+            except Exception as e:
+                last_error = e
 
-            except HTTPError as e:
-                status = int(getattr(e, "code", 0) or 0)
-                try:
-                    err_body = e.read().decode("utf-8", errors="replace")
-                except Exception:
-                    err_body = ""
+                # 分类错误
+                error_info = classify_error(e)
 
-                err_message = _extract_error_message(err_body)
-
-                if tools and not use_legacy and status == 400 and _looks_like_tools_unsupported(err_message):
+                # 处理降级情况（tools 不支持）
+                if error_info.should_degrade and tools and not use_legacy:
                     use_legacy = True
-                    continue
+                    continue  # 立即重试，不等待
 
-                if attempt < max_attempts and (status == 429 or 500 <= status <= 599):
-                    _backoff_sleep(attempt)
-                    continue
+                # 不可重试错误，直接抛出
+                if error_info.error_type.value == "non_retryable":
+                    self._raise_formatted_error(endpoint, payload, error_info, use_legacy)
 
-                summary = {
-                    "endpoint": endpoint,
-                    "status": status,
-                    "reason": str(getattr(e, "reason", "")),
-                    "model": str(self.config.model),
-                    "timeout_sec": int(self.config.timeout_sec),
-                    "messages": len(payload.get("messages") or []),
-                    "tools_mode": "legacy" if use_legacy else "tools",
-                    "tools": len(payload.get("tools") or []) if "tools" in payload else 0,
-                    "functions": len(payload.get("functions") or []) if "functions" in payload else 0,
-                    "error_message": err_message,
-                }
-                raise ValueError(
-                    "openai-compatible request failed: "
-                    + json.dumps(summary, ensure_ascii=False)
-                    + f" response_body={_truncate(err_body, 4000)}"
-                ) from None
+                # 最后一次尝试，不再重试
+                if attempt >= retry_config.max_attempts:
+                    self._raise_formatted_error(endpoint, payload, error_info, use_legacy)
 
-            except URLError as e:
-                if attempt < max_attempts:
-                    _backoff_sleep(attempt)
-                    continue
-                summary = {
-                    "endpoint": endpoint,
-                    "reason": str(getattr(e, "reason", e)),
-                    "model": str(self.config.model),
-                    "timeout_sec": int(self.config.timeout_sec),
-                    "tools_mode": "legacy" if use_legacy else "tools",
-                }
-                raise ValueError(
-                    "openai-compatible request failed: " + json.dumps(summary, ensure_ascii=False)
-                ) from None
+                # 可重试错误，等待后重试
+                import time
+                delay = calculate_backoff_delay(attempt, retry_config)
+                time.sleep(delay)
 
+        # 理论上不会到这里
+        if last_error:
+            raise last_error
         raise ValueError("openai-compatible request failed: exhausted retries")
+
+    def _raise_formatted_error(
+        self,
+        endpoint: str,
+        payload: dict[str, object],
+        error_info: Any,
+        use_legacy: bool,
+    ) -> None:
+        """格式化并抛出错误"""
+        summary = {
+            "endpoint": endpoint,
+            "model": str(self.config.model),
+            "timeout_sec": int(self.config.timeout_sec),
+            "messages": len(payload.get("messages") or []),
+            "tools_mode": "legacy" if use_legacy else "tools",
+            "error_type": error_info.error_type.value,
+            "error_message": error_info.message,
+        }
+
+        if error_info.status_code:
+            summary["status"] = error_info.status_code
+
+        raise ValueError(
+            "openai-compatible request failed: " + json.dumps(summary, ensure_ascii=False)
+        ) from error_info.raw_error
