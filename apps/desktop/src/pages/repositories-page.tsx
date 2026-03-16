@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { open } from "@tauri-apps/plugin-dialog";
 
 import { PageLayout } from "../components/layout/page-layout";
 import { Button } from "../components/ui/button";
@@ -13,6 +14,23 @@ export function RepositoriesPage() {
   const sortedRepos = useMemo(() => {
     return [...repos].sort((a, b) => Number(b.pinned) - Number(a.pinned));
   }, [repos]);
+
+  const onSelectFolder = async () => {
+    try {
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: "选择项目文件夹",
+      });
+
+      if (selected && typeof selected === "string") {
+        setPathInput(selected);
+        setError(null);
+      }
+    } catch (e) {
+      setError(`选择文件夹失败：${String(e)}`);
+    }
+  };
 
   const onImportLocal = () => {
     const p = pathInput.trim();
@@ -48,6 +66,9 @@ export function RepositoriesPage() {
             placeholder="例如：E:\\projects\\my-repo"
             className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
           />
+          <Button variant="outline" onClick={onSelectFolder}>
+            📁 浏览
+          </Button>
           <Button onClick={onImportLocal}>导入</Button>
         </div>
         {error ? <p className="mt-2 text-xs text-red-500">{error}</p> : null}

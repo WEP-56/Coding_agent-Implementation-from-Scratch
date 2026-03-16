@@ -42,6 +42,17 @@ SUBAGENT_COMPLETED = "subagent_complete"
 SUBAGENT_ERROR = "subagent_error"
 SUBAGENT_MAX_ITERATIONS = "subagent_max_iterations"
 
+# Parallel Agents (新增)
+PARALLEL_AGENTS_START = "parallel_agents_start"  # 并行任务开始
+PARALLEL_AGENTS_COMPLETE = "parallel_agents_complete"  # 并行任务完成
+PARALLEL_TASK_START = "parallel_task_start"  # 单个并行任务开始
+PARALLEL_TASK_COMPLETE = "parallel_task_complete"  # 单个并行任务完成
+PARALLEL_TASK_ERROR = "parallel_task_error"  # 单个并行任务失败
+PARALLEL_TASK_PROGRESS = "parallel_task_progress"  # 任务进度更新
+TASK_DECOMPOSED = "task_decomposed"  # 任务自动分解
+RESULT_SYNTHESIS_START = "result_synthesis_start"  # 结果综合开始
+RESULT_SYNTHESIS_COMPLETE = "result_synthesis_complete"  # 结果综合完成
+
 # Skills
 SKILL_LOADED = "skill_loaded"
 
@@ -96,6 +107,16 @@ EventKind = Literal[
     "subagent_complete",
     "subagent_error",
     "subagent_max_iterations",
+    # Parallel Agents
+    "parallel_agents_start",
+    "parallel_agents_complete",
+    "parallel_task_start",
+    "parallel_task_complete",
+    "parallel_task_error",
+    "parallel_task_progress",
+    "task_decomposed",
+    "result_synthesis_start",
+    "result_synthesis_complete",
     # Skills
     "skill_loaded",
     # Loop

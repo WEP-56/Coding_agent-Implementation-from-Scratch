@@ -180,21 +180,23 @@ export function RightSidebar({ sessionId }: RightSidebarProps) {
               const itemIndent = depth(entry.path);
               if (entry.isDir) {
                 return (
-                  <button
-                    key={entry.path}
-                    onClick={() => void toggleDir(entry.path)}
-                    className="w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent/50"
-                    style={{ paddingLeft: `${8 + itemIndent * 12}px` }}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-muted-foreground">
-                        {expandedDirs.has(entry.path) ? "▾" : "▸"}
-                      </span>
-                      <span className="truncate text-foreground">
-                        📁 {basename(entry.path)}
-                      </span>
-                    </div>
-                  </button>
+                  <div key={entry.path}>
+                    <button
+                      onClick={() => void toggleDir(entry.path)}
+                      className="w-full rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-accent/50"
+                      style={{ paddingLeft: `${8 + itemIndent * 12}px` }}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-muted-foreground">
+                          {expandedDirs.has(entry.path) ? "▾" : "▸"}
+                        </span>
+                        <span className="truncate text-foreground">
+                          📁 {basename(entry.path)}
+                        </span>
+                      </div>
+                    </button>
+                    {expandedDirs.has(entry.path) && renderDir(entry.path)}
+                  </div>
                 );
               }
               return (

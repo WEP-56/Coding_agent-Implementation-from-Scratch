@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
 import {
   approveRequest,
@@ -21,6 +23,7 @@ import type {
   ToolCallItem,
 } from "../../types/models";
 import { useSettingsStore } from "../../store/settings-store";
+import { usePluginStore } from "../../store/plugin-store";
 import { ContextUsageRing } from "./context-usage-ring";
 import { WorkflowRunCard } from "./workflow-run-card";
 
@@ -131,8 +134,10 @@ function MessageBubble({ message }: { message: ChatMessage }) {
               : "border border-border/50 bg-card text-foreground",
         )}
       >
-        <div className="whitespace-pre-wrap text-sm leading-7">
-          {message.content}
+        <div className="prose prose-sm max-w-none text-sm leading-7 dark:prose-invert prose-pre:bg-background/50 prose-pre:border prose-pre:border-border/50">
+          <ReactMarkdown remarkPlugins={[remarkGfm]}>
+            {message.content}
+          </ReactMarkdown>
         </div>
         <div className="mt-2 text-xs opacity-60">
           {new Date(message.createdAt).toLocaleTimeString()}
@@ -183,8 +188,29 @@ export function ChatArea({
   const [pendingApprovals, setPendingApprovals] = useState<ApprovalRequest[]>(
     [],
   );
+  const [showSkills, setShowSkills] = useState(false);
   const settings = useSettingsStore((s) => s.settings);
+  const plugins = usePluginStore((s) => s.plugins);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // 内置 skills
+  const builtInSkills = [
+    { name: "git-workflow", description: "Git 操作、提交信息、PR 流程" },
+    { name: "testing", description: "测试策略、框架选择、覆盖率" },
+    { name: "debugging", description: "诊断步骤、常见问题、性能分析" },
+    { name: "code-review", description: "代码审查清单、安全、性能" },
+  ];
+
+  // 合并内置 skills 和已导入的插件
+  const availableSkills = useMemo(() => {
+    const imported = plugins
+      .filter((p) => p.enabled)
+      .map((p) => ({
+        name: p.name,
+        description: `自定义插件：${p.name}`,
+      }));
+    return [...builtInSkills, ...imported];
+  }, [plugins]);
 
   const transcript = useMemo(
     () => buildTranscript(messages, sessionRuns),
@@ -421,8 +447,56 @@ export function ChatArea({
             </details>
           ) : null}
 
+          {showSkills && (
+            <div className="mb-3 rounded-xl border border-border/50 bg-card/50 p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-xs font-medium text-foreground">可用 Skills</span>
+                <button
+                  onClick={() => setShowSkills(false)}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  收起
+                </button>
+              </div>
+              <div className="grid gap-2">
+                {availableSkills.map((skill) => (
+                  <button
+                    key={skill.name}
+                    onClick={() => {
+                      setInput((prev) => `@${skill.name} ${prev}`);
+                      setShowSkills(false);
+                    }}
+                    className="rounded-lg border border-border/50 bg-background/50 px-3 py-2 text-left transition-colors hover:bg-accent"
+                  >
+                    <div className="text-xs font-medium text-foreground">@{skill.name}</div>
+                    <div className="text-[11px] text-muted-foreground">{skill.description}</div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="flex gap-3">
-            <div className="flex flex-col justify-end pb-1">
+            <div className="flex flex-col justify-end gap-2 pb-1">
+              <button
+                onClick={() => setShowSkills(!showSkills)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg border border-border/50 bg-background transition-colors hover:bg-accent"
+                title="Skills 快捷选择"
+              >
+                <svg
+                  className="h-4 w-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M13 10V3L4 14h7v7l9-11h-7z"
+                  />
+                </svg>
+              </button>
               <ContextUsageRing
                 estimatedTokens={pythonContext?.estimatedTokens ?? pythonTodo?.stats?.contextTokens ?? 0}
                 limitTokens={pythonContext?.threshold ?? settings.model.contextTokenLimit ?? 16000}
@@ -432,7 +506,7 @@ export function ChatArea({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="输入任务描述... (Ctrl+Enter 发送)"
+              placeholder="输入任务描述... (Ctrl+Enter 发送，点击闪电图标选择 Skills)"
               className="flex-1 resize-none rounded-2xl border border-border/50 bg-background px-4 py-3 text-sm placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
               rows={3}
               disabled={isRunning}

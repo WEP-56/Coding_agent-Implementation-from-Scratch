@@ -44,17 +44,36 @@ class SkillLoader:
         self._scan_skills()
 
     def _scan_skills(self) -> None:
-        """扫描 skills/ 目录，解析所有技能"""
+        """扫描 skills/ 目录，解析所有技能
+
+        支持两种结构：
+        1. 规范结构：skills/<name>/SKILL.md
+        2. 平铺结构：skills/*.md（向后兼容）
+        """
         if not self.skills_dir.exists():
             return
 
+        # 优先扫描规范结构：skills/<name>/SKILL.md
+        for skill_dir in self.skills_dir.iterdir():
+            if skill_dir.is_dir():
+                skill_file = skill_dir / "SKILL.md"
+                if skill_file.exists():
+                    try:
+                        skill = self._parse_skill_file(skill_file)
+                        self.skills[skill.name] = skill
+                    except Exception as e:
+                        print(f"Warning: Failed to parse {skill_file}: {e}")
+
+        # 向后兼容：扫描平铺的 .md 文件
         for file in self.skills_dir.glob("*.md"):
-            try:
-                skill = self._parse_skill_file(file)
-                self.skills[skill.name] = skill
-            except Exception as e:
-                # 跳过解析失败的文件
-                print(f"Warning: Failed to parse skill file {file}: {e}")
+            if file.name != "SKILL.md":  # 避免重复扫描
+                try:
+                    skill = self._parse_skill_file(file)
+                    # 只在不存在时添加（规范结构优先）
+                    if skill.name not in self.skills:
+                        self.skills[skill.name] = skill
+                except Exception as e:
+                    print(f"Warning: Failed to parse skill file {file}: {e}")
 
     def _parse_skill_file(self, file_path: Path) -> Skill:
         """
@@ -140,6 +159,13 @@ class SkillLoader:
         """获取技能完整内容"""
         return self.skills.get(name)
 
+    def get_content(self, name: str) -> str | None:
+        """获取技能完整内容，包装在 XML 标签中（符合规范）"""
+        skill = self.skills.get(name)
+        if not skill:
+            return None
+        return f'<skill name="{skill.name}">\n{skill.content}\n</skill>'
+
     def list_skills(self) -> list[dict[str, Any]]:
         """返回技能摘要列表（用于 system prompt）"""
         return [
@@ -151,6 +177,10 @@ class SkillLoader:
             }
             for s in self.skills.values()
         ]
+
+    def get_descriptions(self) -> list[dict[str, Any]]:
+        """返回技能摘要列表（规范命名，等同于 list_skills）"""
+        return self.list_skills()
 
     def get_auto_load_skills(self) -> list[Skill]:
         """获取需要自动加载的技能"""

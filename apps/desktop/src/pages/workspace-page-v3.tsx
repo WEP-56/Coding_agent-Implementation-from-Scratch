@@ -69,10 +69,14 @@ export function WorkspacePageV3() {
     retryStep,
     setLoadingTimeline,
   } = useSessionStore();
-  const pushToast = useUiStore((s) => s.pushToast);
+  const {
+    pushToast,
+    leftSidebarCollapsed,
+    rightSidebarCollapsed,
+    toggleLeftSidebar,
+    toggleRightSidebar,
+  } = useUiStore();
 
-  const [leftCollapsed, setLeftCollapsed] = useState(false);
-  const [rightCollapsed, setRightCollapsed] = useState(false);
   const [terminalVisible, setTerminalVisible] = useState(false);
   const [sessionRuns, setSessionRuns] = useState<SessionRun[]>([]);
   const [sessionTurns, setSessionTurns] = useState<SessionTurn[]>([]);
@@ -466,13 +470,13 @@ export function WorkspacePageV3() {
   return (
     <div className="flex h-screen flex-col overflow-hidden">
       <CustomTitlebar
-        onToggleLeftSidebar={() => setLeftCollapsed(!leftCollapsed)}
-        onToggleRightSidebar={() => setRightCollapsed(!rightCollapsed)}
+        onToggleLeftSidebar={toggleLeftSidebar}
+        onToggleRightSidebar={toggleRightSidebar}
         onToggleTerminal={() => setTerminalVisible(!terminalVisible)}
         onOpenInExplorer={handleOpenInExplorer}
         onOpenInVscode={handleOpenInVscode}
-        leftSidebarVisible={!leftCollapsed}
-        rightSidebarVisible={!rightCollapsed}
+        leftSidebarVisible={!leftSidebarCollapsed}
+        rightSidebarVisible={!rightSidebarCollapsed}
         terminalVisible={terminalVisible}
         workspacePath={currentRepoPath}
       />
@@ -486,10 +490,10 @@ export function WorkspacePageV3() {
             />
           }
           bottomPanelVisible={terminalVisible}
-          leftCollapsed={leftCollapsed}
-          rightCollapsed={rightCollapsed}
-          onLeftToggle={() => setLeftCollapsed(!leftCollapsed)}
-          onRightToggle={() => setRightCollapsed(!rightCollapsed)}
+          leftCollapsed={leftSidebarCollapsed}
+          rightCollapsed={rightSidebarCollapsed}
+          onLeftToggle={toggleLeftSidebar}
+          onRightToggle={toggleRightSidebar}
           leftSidebar={
             <LeftSidebar
               repos={repos}

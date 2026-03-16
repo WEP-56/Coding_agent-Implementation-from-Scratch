@@ -1,118 +1,94 @@
 # CodingGirl
 
-CodingGirl 是一个正在持续向 Codex / OpenCode /Gemini cli /Claude code 方向推进的 coding agent 项目，但开发的重点并非向这些优秀项目对齐，而是制作一个有超级trace与模型工作流可视化的agent、ai ide，以更好的监督模型工作状态，甚至在未来，直接针对工作流内的某一处工作给出针对性指挥意见。
+**可观测、可控的 AI 编程助手**
 
-这个项目目前在能力较强的模型情况下（如GPT5以上、Gemini3以上、Claude、，已经可以胜任中小型项目的制作。
+CodingGirl 是一个专注于**可视化工作流与超级 Trace** 的 Coding Agent 项目。不同于传统 AI 编程工具，我们的核心目标是让 AI 的工作过程**可监督、可回放、可恢复**，帮助开发者更好地理解和控制 AI 的决策。
 
-当前正在推进的任务，请查看：TODO.md
+在能力较强的模型加持下（GPT-5+、Claude、Gemini、GLM-5+、Qwen-3+ 等），CodingGirl 已经可以胜任中型项目的开发任务。
 
-## 实时统计（各模块代码行数）
+---
+
+## ✨ 核心特性
+
+- **🔍 超级 Trace**：完整记录 AI 的每一步决策，支持回放和审计
+- **📊 工作流可视化**：实时展示任务分解、执行进度和上下文状态
+- **⚡ 并行执行**：多 Agent 并行处理复杂任务，显著提升效率
+- **🎯 智能上下文管理**：自适应压缩，保持关键信息不丢失
+- **🔧 Skills 系统**：按需加载领域知识，避免 prompt 膨胀
+- **🖥️ 多模态支持**：Desktop UI + CLI + Bot，适配不同使用场景
+
+---
+
+## 📊 项目规模
+
 ```text
-模块                         文件数  行数
-智能体模块                      42  4293
-测试、验证模块                  10   759
-前端界面                        43  8492
-桌面壳/后端                     22 10941
-文档（包含pages）                8  1551
+模块                    文件数  代码行数
+智能体核心                 74    12774
+测试验证                   18     2591
+前端界面                   45     9373
+桌面后端                   23    12084
+文档                       20     5543
 ```
+
 生成命令：`py scripts/loc.py`
-```text
-root                         files lines
-codinggirl                      42  4293
-tests                           10   759
-apps/desktop/src                43  8492
-apps/desktop/src-tauri/src      22 10941
-docs                             8  1551
-```
 
+---
 
-## 它现在是什么
-
-仓库里有两条实现线：
-
-- `apps/desktop/`
-  React + Tauri 桌面端。
-  这是当前最重要的产品面和 runtime 实验场。
-- `codinggirl/`
-  Python agent core。
-  保留 contracts、workspace sandbox、CLI、patch 应用等底层能力。
-
-当前状态可以概括成一句话：
-
-> 已经是一个可实际使用的原型，但还在从“功能拼接”往“canonical runtime”收敛。
-
-## 进化路线
-
-
-1. `P0`（当前阶段）
-   先把系统跑稳。
-   统一 canonical turn/item、runtime grammar、mutation provenance、rollback metadata、error taxonomy。
-2. `P1`
-   再把系统跑聪明。
-   强化 intent router、context engine、tool-output prune、route explanation。
-3. `P2`
-   让它接近产品级。
-   补 resume / fork / rollback semantics、verification、watcher、长期任务 supervision。
-4. `P3`
-   最后补长期效率层。
-   再考虑 skills、shared continuity、team config、automation。
-
-
-## 文档入口（待完善）
-
-
-- [文档首页](./docs/index.html)
-- [快速上手](./docs/getting-started.html)
-- [架构说明](./docs/architecture.html)
-- [路线图](./docs/roadmap.html)
-- [Papers / 对标资料入口](./docs/papers.html)
-- [文档索引](./docs/README.md)
-- [执行清单](Todo.md)
-
-
-
-## 当前仓库结构
+## 🏗️ 架构概览
 
 ```text
-apps/desktop/        React + Tauri 桌面端原型
-codinggirl/          Python agent core
-docs/                当前主文档入口
-tests/               Python 测试
-tmp/                 上游参考源码区
-pyproject.toml       Python 包与 CLI 配置
+apps/desktop/        React + Tauri 桌面应用（主要产品形态）
+codinggirl/          Python Agent 核心（工具、运行时、索引）
+docs/                文档站点（GitHub Pages）
+tests/               测试套件
+skills/              内置技能库
 ```
 
-## 快速开始
+**两条实现线**：
+- **Desktop UI**：当前最重要的产品面和实验场
+- **Python Core**：底层能力（workspace、工具、patch 应用等）
 
-### 1. Python Core
+---
 
-要求：
+## 🚀 快速开始
 
-- Python `>= 3.11`
+### 1. Python 核心
 
-安装与测试：
+**要求**：Python >= 3.11
 
 ```bash
+# 安装依赖
 py -m pip install -e .[dev]
+
+# 运行测试
 py -m pytest
+
+# 初始化
+py -m codinggirl init
+
+# 索引代码库
+py -m codinggirl index --repo . --index-dir .codinggirl/index --max-lines 160
 ```
 
-初始化与运行：
+### 2. 桌面应用（推荐）
+
+**要求**：Node.js + Rust toolchain
 
 ```bash
-py -m codinggirl init
-py -m codinggirl index --repo . --index-dir .codinggirl/index --max-lines 160
-py -m codinggirl orchestrate --repo . --db .codinggirl/codinggirl.sqlite3 --goal "replace [old] with [new] in [README.md]"
+cd apps/desktop
+
+# 安装依赖
+npm install
+
+# 开发模式
+npm run desktop
+
+# 构建发布版
+npm run build
+npm run tauri build
 ```
 
-### 2. Desktop Web Shell
-
-要求：
-
-- Node.js
-- npm
-
-运行：
+### 3. Web 开发模式
 
 ```bash
 cd apps/desktop
@@ -120,69 +96,87 @@ npm install
 npm run dev
 ```
 
-### 3. Desktop Tauri Shell （最完善，推荐）
+---
 
-要求：
+## 📖 文档
 
-- Rust toolchain
-- Tauri 所需本地依赖
+- **[文档首页](./docs/index.html)** - 项目定位和阅读指南
+- **[快速上手](./docs/getting-started.html)** - 最短启动路径
+- **[架构说明](./docs/architecture.html)** - 核心对象和工具边界
+- **[使用指南](./docs/roadmap.html)** - 工作流和用户路径
+- **[论文参考](./docs/papers.html)** - 相关研究和对标资料
 
-运行桌面壳：
+---
 
-```bash
-cd apps/desktop
-npm run desktop
-```
+## 🎯 发展路线
 
-构建：
+### P0 - 稳定性（当前阶段）
+- ✅ 统一 runtime grammar 和事件模型
+- ✅ 完善错误分类和重试机制
+- ✅ 实现上下文智能压缩
+- ✅ 并行 Agent 系统
 
-```bash
-cd apps/desktop
-npm run build
-npm run tauri build
-```
+### P1 - 智能化（进行中）
+- 🔄 Search-replace 编辑模式
+- 🔄 自动测试运行和验证
+- 🔄 语义搜索和代码索引
+- 🔄 智能回滚和错误恢复
 
-## 常用验证命令
+### P2 - 产品化
+- ⏳ Resume / Fork / Rollback 语义
+- ⏳ 长期任务监控
+- ⏳ 项目级知识库
 
-```bash
-在制作时产出了很多测试/验证脚本，但更推荐使用这个
-py -m pytest
-cargo test --manifest-path apps/desktop/src-tauri/Cargo.toml
-cd apps/desktop && npm run build
-```
+### P3 - 生态化
+- ⏳ 插件市场
+- ⏳ 多人协作
+- ⏳ 自定义工作流编排
 
+---
 
+## 🤝 贡献指南
 
-## 开发约束
+欢迎贡献代码或观点！无论是手工制作还是 AI 产出，**有效的就是最好的**。
 
-- `docs/` 是主文档入口。
-- 前后端同步推进，不能只改后端不适配前端。
-- 单文件尽量不要超过 `800` 行；超过 `1000` 行必须拆分。
-- 优先拉近本项目与 Codex / OpenCode 在 runtime / context / feedback 上的距离，然后继续强化trace。
-- 不要在 runtime 还没稳定时继续堆表面功能。
+### 优先级建议
 
-## 现在已经有的方向性成果
+1. **提升成功率**：工具参数校验、失败恢复、可回放证据链
+2. **增强可解释性**：事件语义单一、UI 投影清晰、失败可定位
+3. **同步前端适配**：新能力要有 UI 入口，避免"后端很强但用户用不到"
 
-最近这条主线已经完成了几件关键事：
+### 开发约束
 
-- canonical `SessionTurn / SessionTurnItem` 已经落地，并开始作为 workflow card 的主数据源
-- `phase / context / model_request / validation / command / tool / diff / approval / artifact / error` 已经逐步进入同一套 runtime grammar
-- terminal command 已经进入 canonical run/turn，而不再是旁路能力
-- rollback 已经接入真实 backend 流程
-- mutation provenance / rollback metadata 已开始结构化
-- error taxonomy 已经从字符串提示推进到显式类别
+- 单文件不超过 800 行，达到 1000 行必须拆分
+- 前后端同步推进，不能只改后端不适配前端
+- 优先减少状态漂移、隐式行为和语义不一致
 
-## 重要提醒
+---
 
-- 这个仓库目前仍处在快速演进阶段。
-- 它已经不是“只能演示”的玩具，但还不是可以直接对外发布的产品。
-- 继续开发守则：最有价值的工作通常不是“再加一个按钮”，而是继续减少状态漂移、减少隐式行为、减少前后端语义不一致。
-- 欢迎您贡献代码或观点，无论是手工制作还是ai产出，有效的就是最好的
+## 🔬 技术亮点
 
-## 参考项目
+### 可观测性
+- 30+ 事件类型的完整 Trace 系统
+- Timeline 投影和事件流重建
+- 实时上下文统计和健康度监控
 
+### 并行能力
+- 真并行多 Agent 执行
+- LLM 驱动的任务自动分解
+- 拓扑排序处理任务依赖
 
+### 上下文管理
+- 滑动窗口 + 重要性采样
+- 自适应压缩阈值
+- 结构化摘要（无需 LLM 调用）
 
-## 许可证
+---
+
+## 📜 许可证
 
 MIT
+
+---
+
+## 🙏 致谢
+
+本项目部分实现参考了 [ShareAI](https://learn.shareai.run/en/) 的教程和最佳实践。

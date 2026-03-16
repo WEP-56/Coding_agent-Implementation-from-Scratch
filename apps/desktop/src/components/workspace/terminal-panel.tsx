@@ -73,10 +73,10 @@ export function TerminalPanel({
 
     setEntries((current) => [
       ...current,
-      makeEntry("command", `${cwd || repoPath}> ${command}`),
+      makeEntry("command", `$ ${command}`),
     ]);
     setHistory((current) =>
-      [command, ...current.filter((item) => item !== command)].slice(0, 30),
+      [command, ...current.filter((item) => item !== command)].slice(0, 50),
     );
     setHistoryIndex(-1);
     setInput("");
@@ -100,13 +100,13 @@ export function TerminalPanel({
             makeEntry(
               "meta",
               result.success
-                ? `Command finished with exit code ${result.exitCode}.`
-                : `Command failed with exit code ${result.exitCode}.`,
+                ? `✓ Exit code ${result.exitCode}`
+                : `✗ Exit code ${result.exitCode}`,
             ),
           );
         }
         if (result.cwd !== cwd) {
-          next.push(makeEntry("meta", `cwd -> ${result.cwd}`));
+          next.push(makeEntry("meta", `→ ${result.cwd}`));
         }
         return next;
       });
@@ -160,10 +160,8 @@ export function TerminalPanel({
       </div>
 
       <div className="border-t border-slate-800 px-4 py-3">
-        <div className="flex items-center gap-3 rounded-xl border border-slate-800 bg-[#0c1524] px-3 py-2">
-          <span className="font-mono text-xs text-emerald-300">
-            {cwd || repoPath || ">"}
-          </span>
+        <div className="flex items-center gap-2 rounded-xl border border-slate-800 bg-[#0c1524] px-3 py-2">
+          <span className="font-mono text-xs text-emerald-400">$</span>
           <input
             className="flex-1 bg-transparent font-mono text-sm text-slate-100 outline-none placeholder:text-slate-500"
             disabled={!sessionId || !repoPath || running}
@@ -196,25 +194,23 @@ export function TerminalPanel({
                 setHistoryIndex(nextIndex);
                 setInput(history[nextIndex] ?? "");
               }
+              if (event.key === "Tab") {
+                event.preventDefault();
+              }
             }}
             placeholder={
               sessionId
-                ? "Enter a PowerShell command..."
+                ? "Type command and press Enter..."
                 : "Select a session to use terminal"
             }
             type="text"
             value={input}
           />
-          <button
-            className="rounded-md border border-slate-700 px-3 py-1.5 text-xs text-slate-200 transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-            disabled={!input.trim() || !sessionId || !repoPath || running}
-            onClick={() => {
-              void submit();
-            }}
-            type="button"
-          >
-            Run
-          </button>
+        </div>
+        <div className="mt-2 flex items-center gap-3 text-[10px] text-slate-500">
+          <span>↑↓ History</span>
+          <span>Enter to run</span>
+          <span>clear to reset</span>
         </div>
       </div>
     </div>
