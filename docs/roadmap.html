@@ -83,20 +83,55 @@
               <strong>2) 生成索引产物（manifest/symbols/repo_map）</strong>
               <span>让系统具备“导航真实仓库”的基本视野。</span>
             </li>
-            <li class="flow-step">
+            <li class=”flow-step”>
               <strong>3) 启动桌面端，观察 workflow/trace</strong>
               <span>确认 UI 能消费 canonical 事件，并展示 tool/diff/artifact。</span>
+            </li>
+            <li class=”flow-step”>
+              <strong>4) 体验 Skills 快速引用与并行 Agent</strong>
+              <span>聊天区域闪电图标可快速引用技能；设置页可配置并行执行参数。</span>
             </li>
           </ol>
         </div>
       </section>
 
-      <section class="section">
-        <div class="container">
-          <div class="section-head">
+      <section class=”section”>
+        <div class=”container”>
+          <div class=”section-head”>
             <div>
-              <div class="section-kicker">权限与风险</div>
-              <h2>不要把“能做”与“允许做”混在一起</h2>
+              <div class=”section-kicker”>核心能力</div>
+              <h2>已实现的关键特性</h2>
+            </div>
+          </div>
+          <div class=”cards-grid three”>
+            <article class=”panel”>
+              <h3>智能上下文压缩</h3>
+              <div class=”mini-copy”>
+                <p>滑动窗口 + 重要性采样 + 结构化摘要，保持 95%+ 信息保留率，节省 35% tokens。</p>
+              </div>
+            </article>
+            <article class=”panel”>
+              <h3>并行 Agent 系统</h3>
+              <div class=”mini-copy”>
+                <p>LLM 驱动的任务分解 + 拓扑排序 + 真并行执行，2-3x 速度提升。</p>
+              </div>
+            </article>
+            <article class=”panel”>
+              <h3>Skills 按需加载</h3>
+              <div class=”mini-copy”>
+                <p>支持 ShareAI 规范（SKILL.md + XML 包装），避免 system prompt 膨胀。</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class=”section”>
+        <div class=”container”>
+          <div class=”section-head”>
+            <div>
+              <div class=”section-kicker”>权限与风险</div>
+              <h2>不要把”能做”与”允许做”混在一起</h2>
             </div>
           </div>
           <div class="table-wrap">
@@ -133,31 +168,31 @@
         </div>
       </section>
 
-      <section class="section">
-        <div class="container">
-          <div class="section-head">
+      <section class=”section”>
+        <div class=”container”>
+          <div class=”section-head”>
             <div>
-              <div class="section-kicker">关键缺口（与深度调研对齐）</div>
-              <h2>哪些地方决定“能不能进生产”</h2>
+              <div class=”section-kicker”>关键缺口（与深度调研对齐）</div>
+              <h2>哪些地方决定”能不能进生产”</h2>
             </div>
           </div>
-          <div class="cards-grid three">
-            <article class="panel">
-              <h3>轮询 → 事件推送</h3>
-              <div class="mini-copy">
-                <p>关键面板不应长期依赖 polling，需要 SSE/WebSocket/tauri events。</p>
+          <div class=”cards-grid three”>
+            <article class=”panel”>
+              <h3>Search-Replace 编辑</h3>
+              <div class=”mini-copy”>
+                <p>需要实现类似 Aider 的 search-replace 模式，提升大文件编辑精度。</p>
               </div>
             </article>
-            <article class="panel">
-              <h3>单一事实源</h3>
-              <div class="mini-copy">
-                <p>UI 状态必须由 canonical events reducer 驱动，支持事件重放恢复。</p>
+            <article class=”panel”>
+              <h3>自动测试运行</h3>
+              <div class=”mini-copy”>
+                <p>每次代码变更后自动运行测试，验证修改正确性，失败时智能回滚。</p>
               </div>
             </article>
-            <article class="panel">
-              <h3>验证闭环默认开启</h3>
-              <div class="mini-copy">
-                <p>每个 run 都应有 verify 证据；失败必须可回滚且可解释。</p>
+            <article class=”panel”>
+              <h3>语义搜索增强</h3>
+              <div class=”mini-copy”>
+                <p>基于向量的语义搜索，提升代码理解和相关文件发现能力。</p>
               </div>
             </article>
           </div>

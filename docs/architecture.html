@@ -90,8 +90,42 @@
             <article class="panel">
               <h3>events + replay</h3>
               <div class="mini-copy">
-                <p>tool_call/tool_result 落库，支持 replay_only 重放（含失败结果）。</p>
+                <p>30+ 事件类型完整记录，支持 replay_only 重放（含失败结果）。</p>
                 <p>重点文件：<code>codinggirl/runtime/storage_sqlite.py</code></p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container">
+          <div class="section-head">
+            <div>
+              <div class="section-kicker">智能化能力</div>
+              <h2>上下文管理与并行执行</h2>
+            </div>
+          </div>
+          <div class="cards-grid three">
+            <article class="panel">
+              <h3>智能上下文压缩</h3>
+              <div class="mini-copy">
+                <p>滑动窗口 + 重要性采样 + 结构化摘要，保持 95%+ 信息保留率，节省 35% tokens。</p>
+                <p>重点文件：<code>codinggirl/core/context_manager.py</code></p>
+              </div>
+            </article>
+            <article class="panel">
+              <h3>并行 Agent 系统</h3>
+              <div class="mini-copy">
+                <p>LLM 驱动的任务分解 + 拓扑排序 + 真并行执行，2-3x 速度提升。</p>
+                <p>重点文件：<code>codinggirl/core/parallel_orchestrator.py</code></p>
+              </div>
+            </article>
+            <article class="panel">
+              <h3>Skills 系统</h3>
+              <div class="mini-copy">
+                <p>按需加载领域知识，支持 ShareAI 规范（SKILL.md + XML 包装）。</p>
+                <p>重点文件：<code>codinggirl/core/skill_loader.py</code></p>
               </div>
             </article>
           </div>
@@ -152,6 +186,16 @@
                     <td><code>cmd_run</code></td>
                     <td>exec 权限工具（高风险），后续需要 approvals/sandbox 收口。</td>
                   </tr>
+                  <tr>
+                    <td>并行</td>
+                    <td><code>parallel_execute</code></td>
+                    <td>多 Agent 并行执行，支持任务分解、依赖分析与结果合成。</td>
+                  </tr>
+                  <tr>
+                    <td>技能</td>
+                    <td><code>skill_load</code></td>
+                    <td>按需加载 Skills 内容，支持 ShareAI 规范与 XML 包装。</td>
+                  </tr>
                 </tbody>
               </table>
             </div>
@@ -188,21 +232,88 @@
         </div>
       </section>
 
-      <section class="section">
-        <div class="container">
-          <div class="section-head">
+      <section class=”section”>
+        <div class=”container”>
+          <div class=”section-head”>
             <div>
-              <div class="section-kicker">桌面端适配</div>
-              <h2>后端能力如何变成“用户可用”</h2>
+              <div class=”section-kicker”>桌面端适配</div>
+              <h2>后端能力如何变成”用户可用”</h2>
             </div>
           </div>
-          <article class="panel">
-            <ul class="check-list">
-              <li>将新工具能力通过 bridge 暴露给桌面端。</li>
-              <li>把 tool_call/tool_result 事件推送给 UI（替代轮询）。</li>
-              <li>将 risk/permission 与 approval UI 打通（write/exec 触发 ask_user）。</li>
-              <li>新增 Repo Map / Imports 面板入口（查询 + snippet + 跳转）。</li>
-            </ul>
+          <div class=”cards-grid two”>
+            <article class=”panel”>
+              <h3>已完成适配</h3>
+              <ul class=”check-list”>
+                <li>并行 Agent 配置面板（设置页）。</li>
+                <li>Skills 快速引用（聊天区域闪电图标）。</li>
+                <li>文件树递归展开与导航。</li>
+                <li>内置终端优化（简洁提示符、快捷键）。</li>
+                <li>插件管理与 Skills 导入。</li>
+              </ul>
+            </article>
+            <article class=”panel”>
+              <h3>待完成适配</h3>
+              <ul class=”check-list”>
+                <li>并行任务执行状态可视化（Timeline 投影）。</li>
+                <li>上下文压缩状态监控面板。</li>
+                <li>Repo Map / Imports 查询面板（跳转支持）。</li>
+                <li>Risk/Permission 审批 UI（write/exec 触发）。</li>
+              </ul>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class=”section”>
+        <div class=”container”>
+          <div class=”section-head”>
+            <div>
+              <div class=”section-kicker”>项目统计</div>
+              <h2>当前代码规模</h2>
+            </div>
+          </div>
+          <article class=”panel”>
+            <div class=”table-wrap”>
+              <table>
+                <thead>
+                  <tr>
+                    <th>模块</th>
+                    <th>文件数</th>
+                    <th>代码行数</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr>
+                    <td>智能体核心</td>
+                    <td>74</td>
+                    <td>12,774</td>
+                  </tr>
+                  <tr>
+                    <td>测试验证</td>
+                    <td>18</td>
+                    <td>2,591</td>
+                  </tr>
+                  <tr>
+                    <td>前端界面</td>
+                    <td>45</td>
+                    <td>9,373</td>
+                  </tr>
+                  <tr>
+                    <td>桌面后端</td>
+                    <td>23</td>
+                    <td>12,084</td>
+                  </tr>
+                  <tr>
+                    <td>文档</td>
+                    <td>20</td>
+                    <td>5,543</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div class=”mini-copy” style=”margin-top: 1rem;”>
+              <p>生成命令：<code>py scripts/loc.py</code></p>
+            </div>
           </article>
         </div>
       </section>
